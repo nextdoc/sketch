@@ -1,12 +1,13 @@
 (ns io.nextdoc.sketch.diagrams
   (:require [clojure.java.io]
+            [clojure.set :as set]
             [clojure.string]
             [clojure.string :as str]
             [malli.dot]))
 
 (defn flow-sequence
   "return a Mermaid sequence diagram for a sequence of network calls"
-  [{:keys [calls]}]
+  [{:keys [calls diagram-config]}]
   (->> calls
        (mapcat (fn [[{:keys [from to request event description]}
                      {:keys [directions async?]}]]
@@ -29,6 +30,19 @@
                      event
                      [(str (name from) " -->> " (name to) ": " (name event))
                       note]))))
+       (concat (if-let [custom-actor-order (:actor-order diagram-config)]
+                 (let [actors-from-calls (->> calls
+                                              (map first)
+                                              (mapcat (juxt :from :to))
+                                              (set))]
+                   (when-let [diff (seq (set/difference actors-from-calls (set custom-actor-order)))]
+                     (throw (ex-info "not all actors in custom :actor-order" {:from-calls actors-from-calls
+                                                                              :custom     custom-actor-order
+                                                                              :diff       diff})))
+                   (mapv (fn [actor]
+                           (str "participant " (name actor)))
+                         custom-actor-order))
+                 []))
        (concat ["sequenceDiagram"])
        (str/join "\n")))
 

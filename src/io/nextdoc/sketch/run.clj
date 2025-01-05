@@ -251,7 +251,7 @@
     [:div.mermaid diagram]]])
 
 (defn write-sequence-diagram!
-  [{:keys [test-ns-str diagram-dir system model-parsed]}]
+  [{:keys [test-ns-str diagram-dir diagram-config system model-parsed]}]
   (let [test-name (as-> test-ns-str $
                         (str/split $ #"\.")
                         (last $))
@@ -262,7 +262,8 @@
         calls (->> @system
                    :messages :all
                    (mapv (sketch-diagram-call model-parsed)))
-        diagram (flow-sequence {:calls calls})]
+        diagram (flow-sequence {:diagram-config diagram-config
+                                :calls          calls})]
     (log/info "updating diagram artifacts:" file-name)
     (io/make-parents (io/file file-name))
     (spit (str file-name ".mmd") diagram)
@@ -318,7 +319,7 @@
 (defn run-steps!
   "the entry point to run a sketch test"
   [{:keys [steps model state-store registry lookup-state-schemas state-schemas-ignored middleware
-           diagram-dir diagram-name verbose?]
+           diagram-dir diagram-name diagram-config verbose?]
     :or   {diagram-dir "target/sketch-diagrams"
            verbose?    false}}]
   (when verbose? (clojure.pprint/pprint steps))
@@ -398,9 +399,10 @@
 
     (log-todos! system)
 
-    (write-sequence-diagram! {:test-ns-str  diagram-name
-                              :diagram-dir  diagram-dir
-                              :system       system
-                              :model-parsed model-parsed})
+    (write-sequence-diagram! {:test-ns-str    diagram-name
+                              :diagram-dir    diagram-dir
+                              :diagram-config diagram-config
+                              :system         system
+                              :model-parsed   model-parsed})
 
     @system))
