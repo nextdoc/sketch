@@ -158,10 +158,13 @@
                                                  (comp #{(:event message)} :event))]
                               model-parsed)]
     (when (not= 1 (count matching-data-flows))
-      (throw (ex-info "no single data flow found" {:actor   to-actor
-                                                   :message message
-                                                   :count   (count matching-data-flows)
-                                                   :matches matching-data-flows})))
+      (throw (ex-info (if (zero? (count matching-data-flows))
+                        "no data flow found"
+                        "more than one data flow found")
+                      {:actor   to-actor
+                       :message message
+                       :count   (count matching-data-flows)
+                       :matches matching-data-flows})))
     (first matching-data-flows)))
 
 (defn validate-payload!
