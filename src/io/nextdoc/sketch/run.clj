@@ -169,7 +169,7 @@
 
 (defn validate-payload!
   "validate an emitted message using a schema"
-  [{:keys [system actor-key model-parsed registry message]}]
+  [{:keys [system actor-key model-parsed registry message closed-data-flow-schemas?]}]
   (let [{from-actor    :actor
          from-location :location} (actor-meta model-parsed actor-key)
         {to-actor    :actor
@@ -184,7 +184,8 @@
                       (:event message) (name (:event message)) ; no suffix for events
                       :else (throw (ex-info "unhandled message type" message)))
         schema-keyword (keyword schema-namespace schema-name)
-        schema (mu/closed-schema (m/schema schema-keyword {:registry registry}))]
+        schema (cond-> (m/schema schema-keyword {:registry registry})
+                       closed-data-flow-schemas? (mu/closed-schema))]
     (try
       (when-not (m/validate schema (:payload message))
         (let [error (ex-info "invalid message payload" {})]
@@ -203,7 +204,7 @@
 
 (defn validate-state-stores!
   "validate the state stores for the actor because handler may have changed them"
-  [{:keys [system model-parsed actor-key registry lookup-state-schemas state-schemas-ignored handler-context]}]
+  [{:keys [system model-parsed actor-key registry lookup-state-schemas state-schemas-ignored handler-context closed-state-schemas?]}]
   (let [{from-actor    :actor
          from-location :location} (actor-meta model-parsed actor-key)]
     (doseq [[k store] (:state handler-context)]
@@ -213,7 +214,8 @@
               schema-keyword (keyword schema-namespace schema-name)]
           (when-not (contains? state-schemas-ignored schema-keyword)
             (try
-              (let [schema (mu/closed-schema (m/schema schema-keyword {:registry registry}))
+              (let [schema (cond-> (m/schema schema-keyword {:registry registry})
+                                   closed-state-schemas? (mu/closed-schema))
                     state (if (contains? lookup-state-schemas schema-keyword)
                             (as-lookup store)
                             (as-map store))]
@@ -322,9 +324,12 @@
 (defn run-steps!
   "the entry point to run a sketch test"
   [{:keys [steps model state-store registry lookup-state-schemas state-schemas-ignored middleware
-           diagram-dir diagram-name diagram-config verbose?]
-    :or   {diagram-dir "target/sketch-diagrams"
-           verbose?    false}}]
+           diagram-dir diagram-name diagram-config verbose?
+           closed-data-flow-schemas? closed-state-schemas?]
+    :or   {diagram-dir               "target/sketch-diagrams"
+           verbose?                  false
+           closed-data-flow-schemas? false
+           closed-state-schemas?     false}}]
   (when verbose? (clojure.pprint/pprint steps))
   (let [model-parsed (or (some-> (io/resource model)
                                  (read-config))
@@ -372,11 +377,12 @@
                                    data-flow (message-data-flow {:model-parsed model-parsed
                                                                  :message      message
                                                                  :from-ports   from-ports})]
-                               (validate-payload! {:system       system
-                                                   :actor-key    actor-key
-                                                   :model-parsed model-parsed
-                                                   :registry     registry
-                                                   :message      message})
+                               (validate-payload! {:system                    system
+                                                   :actor-key                 actor-key
+                                                   :model-parsed              model-parsed
+                                                   :closed-data-flow-schemas? closed-data-flow-schemas?
+                                                   :registry                  registry
+                                                   :message                   message})
                                ; record emitted messages
                                (let [network-message {:data-flow data-flow
                                                       :message   (assoc message :from from-keyword)}]
@@ -386,6 +392,7 @@
                                  (swap! system update-in [:messages :all] (fnil conj []) network-message)))))))
                      (validate-state-stores! {:system                system
                                               :model-parsed          model-parsed
+                                              :closed-state-schemas? closed-state-schemas?
                                               :actor-key             actor-key
                                               :registry              registry
                                               :lookup-state-schemas  lookup-state-schemas
