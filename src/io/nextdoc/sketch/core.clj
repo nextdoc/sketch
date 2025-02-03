@@ -84,7 +84,8 @@
   [map-entries]
   (filterv (fn [[k v]] (not= k (:id v))) map-entries))
 
-(def registry
+(def ^{:doc "Schemas for the model of network locations, actors and state"}
+  model-registry
   (merge
     (m/default-schemas)
     (mu/schemas)
@@ -108,6 +109,7 @@
                   [:actors [:map-of :keyword :actor]]]]
      :state     [:and :named
                  [:map
+                  [:type [:enum :associative :database]]
                   [:entities {:optional true} [:set :keyword]]]]
      :actor     [:and :named
                  [:map

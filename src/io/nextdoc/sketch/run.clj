@@ -204,7 +204,7 @@
 
 (defn validate-state-stores!
   "validate the state stores for the actor because handler may have changed them"
-  [{:keys [system model-parsed actor-key registry lookup-state-schemas state-schemas-ignored handler-context closed-state-schemas?]}]
+  [{:keys [system model-parsed actor-key registry state-schemas-ignored handler-context closed-state-schemas?]}]
   (let [{from-actor    :actor
          from-location :location} (actor-meta model-parsed actor-key)]
     (doseq [[k store] (:state handler-context)]
@@ -216,9 +216,9 @@
             (try
               (let [schema (cond-> (m/schema schema-keyword {:registry registry})
                                    closed-state-schemas? (mu/closed-schema))
-                    state (if (contains? lookup-state-schemas schema-keyword)
-                            (as-lookup store)
-                            (as-map store))]
+                    state (case (select-first [:locations (:id from-location) :state k :type] model-parsed)
+                            :associative (as-lookup store)
+                            :database (as-map store))]
                 (when-let [ex (m/explain schema state)]
                   (let [error (ex-info "invalid storage" {:explain ex})]
                     (log/error (ex-message error))
@@ -323,7 +323,7 @@
 
 (defn run-steps!
   "the entry point to run a sketch test"
-  [{:keys [steps model state-store registry lookup-state-schemas state-schemas-ignored middleware
+  [{:keys [steps model state-store registry state-schemas-ignored middleware
            diagram-dir diagram-name diagram-config verbose?
            closed-data-flow-schemas? closed-state-schemas?]
     :or   {diagram-dir               "target/sketch-diagrams"
@@ -395,7 +395,6 @@
                                               :closed-state-schemas? closed-state-schemas?
                                               :actor-key             actor-key
                                               :registry              registry
-                                              :lookup-state-schemas  lookup-state-schemas
                                               :state-schemas-ignored state-schemas-ignored
                                               :handler-context       handler-context})
                      (when after (after handler-context))))))]
