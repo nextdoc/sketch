@@ -169,7 +169,7 @@
 
 (defn validate-payload!
   "validate an emitted message using a schema"
-  [{:keys [system actor-key model-parsed registry message closed-data-flow-schemas?]}]
+  [{:keys [system actor-key model-parsed registry message step step-info closed-data-flow-schemas?]}]
   (let [{from-actor    :actor
          from-location :location} (actor-meta model-parsed actor-key)
         {to-actor    :actor
@@ -187,8 +187,8 @@
         schema (cond-> (m/schema schema-keyword {:registry registry})
                        closed-data-flow-schemas? (mu/closed-schema))]
     (try
-      (when-not (m/validate schema (:payload message))
-        (let [error (ex-info "invalid message payload" {})]
+      (when-let [ex (m/explain schema (:payload message))]
+        (let [error (ex-info "invalid message payload" {:explain ex})]
           (log/warn (ex-message error))
           (pprint/pprint message)
           (pprint/pprint (m/form (m/deref schema)))
@@ -367,37 +367,51 @@
 
                      (log/info current-step)
 
-                     (when before (before handler-context))
-                     (when handler
-                       (let [{:keys [emit]} (handler handler-context)]
-                         (when emit
-                           (doseq [emitted emit]
-                             (let [emit-middleware (or (:emit middleware) identity)
-                                   message (emit-middleware emitted)
-                                   data-flow (message-data-flow {:model-parsed model-parsed
-                                                                 :message      message
-                                                                 :from-ports   from-ports})]
-                               (validate-payload! {:system                    system
-                                                   :actor-key                 actor-key
-                                                   :model-parsed              model-parsed
-                                                   :closed-data-flow-schemas? closed-data-flow-schemas?
-                                                   :registry                  registry
-                                                   :message                   message})
-                               ; record emitted messages
-                               (let [network-message {:data-flow data-flow
-                                                      :message   (assoc message :from from-keyword)}]
-                                 ; for target
-                                 (swap! system update-in [:messages (:to message)] (fnil conj []) network-message)
-                                 ; also track all messages
-                                 (swap! system update-in [:messages :all] (fnil conj []) network-message)))))))
-                     (validate-state-stores! {:system                system
-                                              :model-parsed          model-parsed
-                                              :closed-state-schemas? closed-state-schemas?
-                                              :actor-key             actor-key
-                                              :registry              registry
-                                              :state-schemas-ignored state-schemas-ignored
-                                              :handler-context       handler-context})
-                     (when after (after handler-context))))))]
+                     (try
+                       (when before (before handler-context))
+                       (when handler
+                         (let [{:keys [emit]} (handler handler-context)]
+                           (when emit
+                             (doseq [emitted emit]
+                               (let [emit-middleware (or (:emit middleware) identity)
+                                     message (emit-middleware emitted)
+                                     data-flow (message-data-flow {:model-parsed model-parsed
+                                                                   :message      message
+                                                                   :from-ports   from-ports})]
+                                 (validate-payload! {:system                    system
+                                                     :actor-key                 actor-key
+                                                     :model-parsed              model-parsed
+                                                     :closed-data-flow-schemas? closed-data-flow-schemas?
+                                                     :registry                  registry
+                                                     :message                   message
+                                                     :step                      step
+                                                     :step-info                 current-step})
+                                 ; record emitted messages
+                                 (let [network-message {:data-flow data-flow
+                                                        :message   (assoc message :from from-keyword)}]
+                                   ; for target
+                                   (swap! system update-in [:messages (:to message)] (fnil conj []) network-message)
+                                   ; also track all messages
+                                   (swap! system update-in [:messages :all] (fnil conj []) network-message)))))))
+                       (validate-state-stores! {:system                system
+                                                :model-parsed          model-parsed
+                                                :closed-state-schemas? closed-state-schemas?
+                                                :actor-key             actor-key
+                                                :registry              registry
+                                                :state-schemas-ignored state-schemas-ignored
+                                                :handler-context       handler-context})
+                       (when after (after handler-context))
+                       (catch ExceptionInfo ei
+                         (let [cursive-link (tagged-literal 'cursive/node
+                                                            {:presentation [{:text  "Jump to failing step -> "
+                                                                             :color :link}
+                                                                            {:text  (str (:name (meta step)))
+                                                                             :color :link}]
+                                                             :action       :navigate
+                                                             :file         (:file (meta step))
+                                                             :line         (:line (meta step))
+                                                             :column       0})]
+                           (throw (ex-info "step failed" {:cursive-jump-link cursive-link} ei)))))))))]
 
     ; TODO snapshots the state stores after each step for diagrams
 
