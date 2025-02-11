@@ -169,7 +169,7 @@
 
 (defn validate-payload!
   "validate an emitted message using a schema"
-  [{:keys [system actor-key model-parsed registry message closed-data-flow-schemas?]}]
+  [{:keys [system actor-key model-parsed registry message step closed-data-flow-schemas?]}]
   (let [{from-actor    :actor
          from-location :location} (actor-meta model-parsed actor-key)
         {to-actor    :actor
@@ -187,8 +187,9 @@
         schema (cond-> (m/schema schema-keyword {:registry registry})
                        closed-data-flow-schemas? (mu/closed-schema))]
     (try
-      (when-not (m/validate schema (:payload message))
-        (let [error (ex-info "invalid message payload" {})]
+      (when-let [ex (m/explain schema (:payload message))]
+        (let [error (ex-info "invalid message payload" {:step    step
+                                                        :explain ex})]
           (log/warn (ex-message error))
           (pprint/pprint message)
           (pprint/pprint (m/form (m/deref schema)))
@@ -382,7 +383,8 @@
                                                    :model-parsed              model-parsed
                                                    :closed-data-flow-schemas? closed-data-flow-schemas?
                                                    :registry                  registry
-                                                   :message                   message})
+                                                   :message                   message
+                                                   :step                      current-step})
                                ; record emitted messages
                                (let [network-message {:data-flow data-flow
                                                       :message   (assoc message :from from-keyword)}]
