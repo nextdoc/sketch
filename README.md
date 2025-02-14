@@ -19,10 +19,7 @@
     - data flow events
         - request/response
         - unidirectional (web-socket or Queue)
-    - naming
-        - source, target or event focused naming TODO
-        - common namespace for internal schema keys TODO
-        - configure key style for actors e.g. JSON i/o TODO
+    - schema key naming: source, target or event focused naming TODO
 - tools
     - bootstrap Malli schema
         - manually populate schemas maintaining naming standard
@@ -36,8 +33,8 @@
         - state stores
         - data flow events
     - generate non-clojure code
-        - Typescript
-        - Apex
+        - Typescript/Zod TODO
+        - Apex TODO
         - Malli
             - JSON Schema
             - Open API
@@ -59,6 +56,8 @@
         - decoders
     - run on jvm or node using cljc
         - jvm Malli DX tools better
+    - exceptions
+        - Cursive Seeker link to failing step
 
 ## Results
 
@@ -68,7 +67,7 @@
     - data flow events and names
     - schema names
 - kebab-case keywords in all modelling and tests
-  - less mistakes forgetting which key style is used where
+    - less mistakes forgetting which key style is used where
 - Malli schemas for state and data flow ready for implementations
 - full inventory of network communications
 - shift left on design bugs
