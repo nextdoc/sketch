@@ -1,0 +1,40 @@
+{:locations       {:iphone {:id     :iphone
+                            :name   "Mobile Device"
+                            :state  {:dom-form {:id       :dom-form
+                                                :type     :associative
+                                                :name     "Form DOM state"
+                                                :entities #{:buy-form}}}
+                            :actors {:weather-app {:id    :weather-app
+                                                   :name  "weather app installed from App Store"
+                                                   :ports {:http-client {:id   :http-client
+                                                                         :name "Swift HTTP client"}}}}}
+                   :aws    {:id     :aws
+                            :name   "Amazon Web Services"
+                            :state  {:env {:id       :env
+                                           :name     "Lambda environment variables"
+                                           :type     :associative
+                                           :entities #{:env}}
+                                     :ddb {:id       :ddb
+                                           :name     "Dynamodb"
+                                           :type     :database
+                                           :entities #{:city}}}
+                            :actors {:lambda {:id    :lambda
+                                              :name  "Lambda Rest APIs serving http requests/responses"
+                                              :ports {:handler {:id   :handler
+                                                                :name "JVM handlers via API Gateway"}}}}}}
+ :domain-entities {:env  {:id   :env
+                          :name "Environment variables"}
+                   :city {:id   :city
+                          :name "Description of city and location"}}
+ :data-flow       [; requests
+                   {:description "App loads user information"
+                    :from        #ref [:locations :iphone :actors :weather-app :ports :http-client]
+                    :to          #ref [:locations :aws :actors :lambda :ports :handler]
+                    :request     :user-info}
+
+                   ; push events
+                   {:description "Server notifies app that weather in currently visible city changed"
+                    :from        #ref [:locations :aws :actors :lambda :ports :handler]
+                    :to          #ref [:locations :iphone :actors :weather-app :ports :http-client]
+                    :event       :forecast-change}
+                   ]}

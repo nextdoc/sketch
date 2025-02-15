@@ -5,5 +5,12 @@
            com.taoensso/timbre     {:mvn/version "6.0.4"}
            rewrite-clj/rewrite-clj {:mvn/version "1.1.45"}
            hiccup/hiccup           {:mvn/version "1.0.5"}
-           aero/aero               {:mvn/version "1.1.6"}}
- :aliases {:test {:extra-paths ["test"]}}}
+           aero/aero               {:mvn/version "1.1.6"}
+           hawk/hawk               {:mvn/version "0.2.11"}
+           juji/editscript         {:mvn/version "0.6.6"}}
+ :aliases {:examples      {:extra-paths ["examples"]}
+           :test          {:extra-paths ["test"]}
+           :scope-capture {:extra-deps {vvvvalvalval/scope-capture {:mvn/version "0.3.2"}
+                                        cursive/inline-nodes       {:git/url  "https://github.com/cursive-ide/inline-nodes"
+                                                                    :git/sha  "6cc4ee660861a3f4f7809196e7c6c7579e23d290"
+                                                                    :excludes [metosin/malli vvvvalvalval/scope-capture]}}}}}

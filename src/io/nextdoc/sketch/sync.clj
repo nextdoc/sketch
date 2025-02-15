@@ -21,15 +21,9 @@
   (when-not (map? (z/sexpr map-zloc))
     (throw (ex-info "must start at registry map location" {:loc (z/sexpr map-zloc)})))
   (loop [current-key (z/down map-zloc)]                     ; start at first registry key
-    (if (z/end? current-key)
+    (if (nil? current-key)
       ;; Insert at the end if no keys are greater
-      (-> map-zloc
-          (z/down)
-          (z/rightmost)
-          ; insert at end of map in reverse order i.e. push new nodes down
-          (z/insert-right v)
-          (z/insert-right k)
-          (z/insert-newline-right))
+      (z/assoc map-zloc k v)
       (if (> (compare (name k) (name (z/sexpr current-key))) 0)
         (recur (-> current-key (z/right) (z/right)))        ; move to next key
         ;; insert before the current key if it is larger
@@ -56,7 +50,7 @@
   (let [;; read or create source
         root (try (rewrite-root file-name)
                   (catch ExceptionInfo _
-                    (println "File not found. bootstrapping source")
+                    (println "File not found." file-name)
                     (z/of-string "(ns to-do)\n")))
         ;; find or insert the "generated" def form
         generated (or (some-> root
@@ -73,7 +67,7 @@
         existing-keys (-> generated-map (z/sexpr) keys set)
         adds (set/difference keys-required existing-keys)]
     (when-let [invalid (seq (remove keys-required existing-keys))]
-      (throw (ex-info "invalid keys found in generated registry" {:invalid invalid})))
+      (throw (ex-info "extra keys found in generated registry" {:invalid invalid})))
     (when (seq adds)
       (let [;; insert new keys maintaining sort order
             with-adds (reduce (fn [zloc new-key]
