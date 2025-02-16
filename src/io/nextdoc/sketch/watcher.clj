@@ -15,12 +15,10 @@
 
 (defn generate!
   [source target]
-  (let [file (io/file source)
-        domain-meta (when (.exists file)
-                      (aero/read-config file))
-        errors (when domain-meta
-                 (me/humanize (m/explain :domain domain-meta
-                                         {:registry core/model-registry})))
+  (let [domain-meta (-> (io/resource source)
+                        (aero/read-config))
+        errors (me/humanize (m/explain :domain domain-meta
+                                       {:registry core/model-registry}))
         data-flow-keys (->> [core/data-flow-events core/data-flow-pull-packets]
                             (mapcat (fn [source] (source domain-meta)))
                             (sort)
@@ -34,8 +32,6 @@
                       (into data-flow-keys)
                       (sort)
                       (vec))]
-    (when (nil? domain-meta)
-      (log/error "no model found" {:path source}))
     (when errors
       (log/error "invalid actor model!")
       (clojure.pprint/pprint errors))
@@ -55,18 +51,32 @@
       (spit target (z/root-string sorted)))))
 
 (defn start!
-  [{:keys [model-path registry-path]}]
-  (->> [{:paths   [model-path]
-         :handler (fn [ctx e]
-                    (log/with-merged-config
-                      (run/log-config (run/this-ns))
-                      (log/info "Sketch registry sync...")
-                      (#'generate! model-path registry-path)
-                      (log/info "Sketch registry sync complete!"))
-                    ctx)}]
-       (hawk/watch!)
-       (reset! watcher))
-  (println "Started!"))
+  [{:keys [model-path registry-path]}]                      ; TODO option to reload registry after gen
+  (log/with-merged-config
+    (run/log-config (run/this-ns))
+    (cond
+      (nil? (io/resource model-path))
+      (log/warn "model not found" model-path)
+      ; TODO check/bootstrap registry
+      @watcher
+      (log/warn "Already watching!")
+      :else
+      (do
+        (->> [{:paths   [(str (io/file (io/resource model-path)))]
+               :handler (fn [ctx _]
+                          (log/with-merged-config
+                            (run/log-config (run/this-ns))
+                            (log/info "Sketch registry sync...")
+                            (try
+                              (#'generate! model-path registry-path)
+                              (log/info "Sketch registry sync complete!")
+                              (catch Throwable t
+                                (log/error t)
+                                (log/warn "Sketch registry sync failed!"))))
+                          ctx)}]
+             (hawk/watch!)
+             (reset! watcher))
+        (println "Started!")))))
 
 (defn stop!
   []
@@ -74,9 +84,3 @@
     (hawk/stop! @watcher)
     (reset! watcher nil)
     (println "Stopped!")))
-
-(comment
-  (start! {:model-path    "examples/mobile_weather_app/weather-model.edn"
-           :registry-path "examples/mobile_weather_app/weather_registry.cljc"})
-  (stop!)
-  )
