@@ -1,9 +1,9 @@
 {:locations       {:iphone {:id     :iphone
                             :name   "Mobile Device"
-                            :state  {:dom-form {:id       :dom-form
-                                                :type     :associative
-                                                :name     "Form DOM state"
-                                                :entities #{:buy-form}}}
+                            :state  {:core-data {:id       :core-data
+                                                 :type     :database
+                                                 :name     "Core Data Services"
+                                                 :entities #{:user :city}}}
                             :actors {:weather-app {:id    :weather-app
                                                    :name  "weather app installed from App Store"
                                                    :ports {:http-client {:id   :http-client
@@ -17,13 +17,15 @@
                                      :ddb {:id       :ddb
                                            :name     "Dynamodb"
                                            :type     :database
-                                           :entities #{:city}}}
+                                           :entities #{:city :user}}}
                             :actors {:lambda {:id    :lambda
                                               :name  "Lambda Rest APIs serving http requests/responses"
                                               :ports {:handler {:id   :handler
                                                                 :name "JVM handlers via API Gateway"}}}}}}
  :domain-entities {:env  {:id   :env
                           :name "Environment variables"}
+                   :user {:id   :user
+                          :name "User of weather api"}
                    :city {:id   :city
                           :name "Description of city and location"}}
  :data-flow       [; requests
