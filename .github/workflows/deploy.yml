@@ -32,18 +32,6 @@ jobs:
           #bb: 0.7.8                    # Babashka
           #clj-kondo: 2022.05.31        # Clj-kondo
 
-      - name: Cache clojure dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.m2/repository
-            ~/.gitlibs
-            ~/.deps.clj
-          # List all files containing dependencies:
-          key: cljdeps-${{ hashFiles('deps.edn') }}
-          # key: cljdeps-${{ hashFiles('deps.edn', 'bb.edn') }}
-          restore-keys: cljdeps-
-
       - name: Get version identifier
         id: version
         run: |
@@ -51,12 +39,26 @@ jobs:
           echo "tag=${TAG}" >> $GITHUB_ENV
           echo "Tag resolved: ${TAG}"
 
-      # TODO run core and example tests
+      - name: Clojure Tests
+        run: |
+          clojure -M:examples:cljs-diagram:test-cli          
 
       - name: Shadow CLJS Release Build
         run: |
           npm install
           clojure -M:cljs-diagram:build release diagram          
+
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.m2/repository
+            ~/.gitlibs
+            ~/.deps.clj
+            ~/node_modules
+          # List all files containing dependencies: TODO bb.edn
+          key: cljdeps-${{ hashFiles('deps.edn', 'package.json') }}
+          restore-keys: cljdeps-
 
       - name: Deploy the static artifacts
         run: |

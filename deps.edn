@@ -10,6 +10,9 @@
            juji/editscript         {:mvn/version "0.6.6"}}
  :aliases {:examples      {:extra-paths ["examples"]}
            :test          {:extra-paths ["test"]}
+           :test-cli      {:extra-paths ["test"]
+                           :extra-deps  {lambdaisland/kaocha {:mvn/version "1.86.1355"}}
+                           :main-opts   ["-m" "kaocha.runner"]}
            :scope-capture {:extra-deps {vvvvalvalval/scope-capture {:mvn/version "0.3.2"}
                                         cursive/inline-nodes       {:git/url  "https://github.com/cursive-ide/inline-nodes"
                                                                     :git/sha  "6cc4ee660861a3f4f7809196e7c6c7579e23d290"

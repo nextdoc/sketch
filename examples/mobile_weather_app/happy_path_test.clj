@@ -79,11 +79,11 @@
                       (concat ['reset-system!] app-start-steps)))
 
 (deftest happy-path
-  (->> {:steps          test-steps
-        :diagram-name   (str (sketch-run/this-ns))
-        :diagram-config {;:actor-order []
-                         }}
-       (with-config)
-       (sketch-run/run-steps!)
-       (log/with-merged-config (sketch-run/log-config (sketch-run/this-ns)))
-       ))
+  (is (->> {:steps          test-steps
+            :diagram-name   (str (sketch-run/this-ns))
+            :diagram-config {;:actor-order []
+                             }}
+           (with-config)
+           (sketch-run/run-steps!) ; TODO returns success boolean in results
+           (log/with-merged-config (sketch-run/log-config (sketch-run/this-ns)))
+           )))
