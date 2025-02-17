@@ -35,7 +35,7 @@
               (let [user-name (-> messages last :message :payload :user-name)
                     matches (sketch-run/query (:ddb state) :user (comp #{user-name} :user-name))
                     user (domain/user-with-status user-name matches)]
-                (sketch-run/put-record! (:ddb state) :user (random-uuid) user)
+                (sketch-run/put-record! (:ddb state) :users (random-uuid) user)
                 {:emit [{:to        :aws/lambda
                          :request   :user-info
                          :direction :response
