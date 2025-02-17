@@ -27,6 +27,8 @@ jobs:
           sudo ./linux-install-1.11.1.sh
           npm install -g shadow-cljs
 
+# TODO run core and example tests
+
       - name: Get version identifier
         id: version
         run: |
