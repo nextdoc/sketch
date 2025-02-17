@@ -1,12 +1,10 @@
 (ns io.nextdoc.sketch.browser.diagram-app
   (:require [cljs.reader :as reader]
             [editscript.core :as edit]
-            [reagent.core :as r]
-            [reagent.dom :as dom]
-            [reagent.dom.client :as rdc]
             [goog.string :as gstring]
             [goog.string.format]
-            [sc.api]))
+            [reagent.core :as r]
+            [reagent.dom.client :as rdc]))
 
 (defonce app-state (r/atom {:step   nil
                             :states nil}))
@@ -22,13 +20,16 @@
                     headers (str "<TR>"
                                  (apply str (map #(str "<TD><B>" (name %) "</B></TD>") keys))
                                  "</TR>")]
-                (str "<TABLE BORDER='0' CELLBORDER='1' CELLSPACING='0' CELLPADDING='4'>"
+                (str "<TABLE BGCOLOR='white' BORDER='0' CELLBORDER='1' CELLSPACING='0' CELLPADDING='4'>"
                      "<TR><TD ALIGN='LEFT' COLSPAN='" (count keys) "'><B>" table-name "</B></TD></TR>"
                      ;headers
                      (apply str
                             (for [row-data (vals data)]
                               (str "<TR>"
-                                   (apply str (map #(str "<TD>" (str (get row-data %)) "</TD>") keys))
+                                   (->> keys
+                                        (sort-by #(if (= :id %) [0 ""] [1 %]))
+                                        (mapv #(str "<TD>" (str (get row-data %)) "</TD>"))
+                                        (apply str))
                                    "</TR>")))
                      "</TABLE>"))))
 
@@ -39,6 +40,7 @@
                               (make-html-table data name))))]
 
     (str "digraph {\n"
+         "  bgcolor=\"#BEC7FC\";\n"
          "  node [shape=none];\n"
          "  rankdir=LR;\n"
          (apply str (map render-table tables))
@@ -90,12 +92,13 @@
                                                                 :data  data}))
                                                            store)}))))]
     [:div
+     ;[:div (pr-str (dissoc @app-state :states))]
      (for [{:keys [actor stores]} visible-state-stores]
        [:div {:key   (name actor)
-              :style {:background-color "lightgrey"
-                      :padding          "1rem"
-                      :margin-bottom    "1rem"}}
-        [:h3 actor]
+              :style {:border  "2px solid #1740FF"
+                      :padding "1rem"
+                      :margin  "1rem"}}
+        [:div {:style {:margin-bottom "1rem"}} [:b actor]]
         [:div (for [{:keys [store data]} stores]
                 (let [diagram-data (reduce-kv (fn [acc k v]
                                                 (conj acc {:name (name k)
@@ -107,20 +110,42 @@
                                               data)
                       diagram (create-tables-diagram diagram-data)]
                   [:div {:key   (str (name actor) "-" (name store))
-                         :style {}}
+                         :style {:border        "2px solid #7D8FF9"
+                                 :padding       "1rem"
+                                 :margin-bottom "1rem"}}
                    [:div store]
                    [graphviz-component diagram]]))]])]))
 
 (defn toggle-actor!
   [actor-name]
   (let [k (keyword actor-name)]
-    (if (contains? (:actors-visible @app-state) actor-name)
+    (if (contains? (:actors-visible @app-state) k)
       (swap! app-state update :actors-visible disj k)
       (swap! app-state update :actors-visible (fnil conj #{}) k))))
 
 (defn set-step!
   [step-number]
   (swap! app-state assoc :step step-number))
+
+(defn on-mouse-move [event]
+  (when (:resizing? @app-state)
+    (let [container-width (.-offsetWidth (.querySelector js/document ".container"))
+          new-left-width (* (/ (.-clientX event) container-width) 100)
+          clamped-width (max 10 (min 90 new-left-width))]   ;; Clamping between 10% and 90%
+      (swap! app-state assoc :left-width clamped-width)
+      (set! (.-width
+              (.-style (first (.getElementsByClassName js/document "left"))))
+            (str (:left-width @app-state) "%")))))
+
+(defn stop-resizing []
+  (swap! app-state assoc :resizing? false)
+  (.removeEventListener js/document "mousemove" on-mouse-move)
+  (.removeEventListener js/document "mouseup" stop-resizing))
+
+(defn start-resizing [event]
+  (swap! app-state assoc :resizing? true)
+  (.addEventListener js/document "mousemove" on-mouse-move)
+  (.addEventListener js/document "mouseup" stop-resizing))
 
 (defonce root (rdc/create-root (.getElementById js/document "app")))
 
@@ -129,6 +154,11 @@
   (rdc/render root [app])
 
   (js/setTimeout (fn []
+
+                   (.addEventListener (first (.getElementsByClassName js/document "divider"))
+                                      "mousedown"
+                                      start-resizing)
+
                    (doseq [actor (.getElementsByClassName js/document "actor")]
                      (when-let [n (.getAttribute actor "name")] ; only rect has name
                        (.addEventListener (.-nextElementSibling actor) ; text in rect is clickable

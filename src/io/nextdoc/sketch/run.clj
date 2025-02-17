@@ -255,10 +255,13 @@
     [:script {:src "https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"}]
     [:script {:src "https://d3js.org/d3.v7.min.js"}]
     [:script {:src "https://unpkg.com/d3-graphviz/build/d3-graphviz.min.js"}]
-    [:script "mermaid.initialize({ startOnLoad: true, securityLevel: 'loose' });"]]
-   [:body
-    [:div.mermaid diagram]
-    [:div#app]
+    [:script "mermaid.initialize({ startOnLoad: true, securityLevel: 'loose' });"]
+    [:style (slurp (io/resource "io/nextdoc/sketch/browser/host-page.css"))]]
+   [:body {:style "background-color:#BEC7FC;"}
+    [:div.container
+     [:div.mermaid.left diagram]
+     [:div.divider]
+     [:div#app.right]]
     [:script {:src "http://localhost:8000/diagram-js/main.js"}]
     (let [actors (->> model
                       (select [:locations MAP-VALS (collect-one :id)
