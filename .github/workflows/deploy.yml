@@ -19,14 +19,10 @@ jobs:
         with:
           fetch-depth: 0  # Ensure we can retrieve tags
 
-      - name: Install Clojure & Shadow CLJS
-        run: |
-          sudo apt update
-          sudo apt install -y clojure rlwrap
-          clojure -P
-          npm install
-
-# TODO run core and example tests
+      - name: Instal Clojure
+        uses: DeLaGuardo/setup-clojure@11
+        with:
+          tools-deps: 1.11.1
 
       - name: Get version identifier
         id: version
@@ -35,8 +31,11 @@ jobs:
           echo "tag=${TAG}" >> $GITHUB_ENV
           echo "Tag resolved: ${TAG}"
 
+      # TODO run core and example tests
+
       - name: Shadow CLJS Release Build
         run: |
+          npm install
           clojure -M:cljs-diagram:build release diagram          
 
       - name: Deploy the static artifacts
