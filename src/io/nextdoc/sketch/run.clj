@@ -1,16 +1,16 @@
 (ns io.nextdoc.sketch.run
   (:require [aero.core :refer [read-config]]
             [clojure.data.json :as json]
-            [editscript.core :as edit]
             [clojure.java.io :as io]
             [clojure.pprint :as pprint]
             [clojure.string :as str]
-            [com.rpl.specter :refer [ALL MAP-VALS collect-one multi-path select select-first MAP-KEYS transform collect]]
+            [com.rpl.specter :refer [ALL MAP-VALS collect-one multi-path select select-first]]
+            [editscript.core :as edit]
             [hiccup.core :refer [html]]
+            [io.nextdoc.sketch.diagrams :refer [flow-sequence]]
             [malli.core :as m]
             [malli.dev.pretty :as mp]
             [malli.util :as mu]
-            [io.nextdoc.sketch.diagrams :refer [flow-sequence]]
             [taoensso.timbre :as log])
   (:import (clojure.lang ExceptionInfo)))
 
@@ -246,43 +246,40 @@
       (log/warn "  use nextdoc.fbp.stream3-sketch"))))
 
 (defn sequence-diagram-page
-  [{:keys [diagram title step-count model states]}]
+  [{:keys [diagram title model states dev?]}]
   [:html {:lang "en"}
    [:head
     [:meta {:charset "UTF-8"}]
     [:meta {:name "viewport" :content "width=device-width, initial-scale=1.0"}]
     [:title title]
+
     [:script {:src "https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"}]
-    [:script {:src "https://d3js.org/d3.v7.min.js"}]
-    [:script {:src "https://unpkg.com/d3-graphviz/build/d3-graphviz.min.js"}]
+    [:script {:src "https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"}]
+    [:script {:src "https://cdn.jsdelivr.net/npm/d3-graphviz/build/d3-graphviz.min.js"}]
+
     [:script "mermaid.initialize({ startOnLoad: true, securityLevel: 'loose' });"]
+
     [:style (slurp (io/resource "io/nextdoc/sketch/browser/host-page.css"))]]
+
    [:body {:style "background-color:#BEC7FC;"}
+    ; TODO title w/ consistent top margin
     [:div.container
      [:div.mermaid.left diagram]
      [:div.divider]
      [:div#app.right]]
+    ; TODO dev dispatch here, using github for hosting release js/map
     [:script {:src "http://localhost:8000/diagram-js/main.js"}]
-    (let [actors (->> model
-                      (select [:locations MAP-VALS (collect-one :id)
-                               (collect [:actors MAP-KEYS])
-                               :state MAP-KEYS])
-                      (reduce (fn [acc [location [actor] state]]
-                                (update-in acc
-                                           [(keyword (str (name location) "-" (name actor))) :store]
-                                           (fnil conj #{}) state))
-                              {}))]
-      [:script (format "io.nextdoc.sketch.browser.diagram_app.loadTest(%s, %s);"
-                       (-> states
-                           (update :diffs #(mapv edit/get-edits %)) ; serializable diffs
-                           (pr-str)
-                           (json/write-str))
-                       (-> actors
-                           (pr-str)
-                           (json/write-str)))])]])
+    [:script (format "io.nextdoc.sketch.browser.diagram_app.load(%s, %s);"
+                     (-> states
+                         (update :diffs #(mapv edit/get-edits %)) ; serializable diffs
+                         (pr-str)
+                         (json/write-str))
+                     (-> model
+                         (pr-str)
+                         (json/write-str)))]]])
 
 (defn write-sequence-diagram!
-  [{:keys [test-ns-str diagram-dir diagram-config system model-parsed states steps]}]
+  [{:keys [test-ns-str diagram-dir diagram-config system model-parsed states]}]
   (let [test-name (as-> test-ns-str $
                         (str/split $ #"\.")
                         (last $))
@@ -298,11 +295,10 @@
     (log/info "updating diagram artifacts:" file-name)
     (io/make-parents (io/file file-name))
     (spit (str file-name ".mmd") diagram)
-    (spit (str file-name ".html") (-> {:diagram    diagram
-                                       :title      test-name
-                                       :states     states
-                                       :step-count (count steps)
-                                       :model      model-parsed}
+    (spit (str file-name ".html") (-> {:diagram diagram
+                                       :title   test-name
+                                       :states  states
+                                       :model   model-parsed}
                                       (sequence-diagram-page)
                                       (html)))
     (log/info success-string)))
@@ -364,102 +360,118 @@
                                  (read-config))
                          (throw (ex-info "model not found" {:source model})))
         system (atom empty-system)
-        run! (fn [step]
-               (let [step-result (step)                     ; invoke step thunk to access it's config
-                     {:keys     [reset action before handler after]
-                      actor-key :actor} step-result]
-                 (cond
-                   ; reset the atoms back to the empty state and provide access to system for seeding data
-                   reset (do
-                           (reset! system empty-system)
-                           (reset system))
-                   handler
-                   (let [{from-actor    :actor
-                          from-location :location} (actor-meta model-parsed actor-key)
-                         from-ports (-> from-actor :ports keys set)
-                         from-keyword (keyword (name (:id from-location))
-                                               (name (:id from-actor)))
-                         state-stores (reduce (fn [acc state-meta]
-                                                (assoc acc (:id state-meta)
-                                                           (or (-> @system :state-stores (get (:id state-meta)))
-                                                               (let [new-store (state-store-wrapped (state-store) state-meta)]
-                                                                 (swap! system assoc-in [:state-stores (:id state-meta)] new-store)
-                                                                 new-store))))
-                                              {}
-                                              (vals (:state from-location)))
-                         handler-context {:state    state-stores
-                                          :messages (get-in @system [:messages actor-key])
-                                          :fixtures (get-in @system [:fixtures (:id from-location)])}
-                         current-step {:location from-location
-                                       :actor    from-actor
-                                       :action   action}]
+        run-step! (fn [step]
+                    (let [step-result (step)                ; invoke step thunk to access it's config
+                          {:keys     [reset action before handler after]
+                           actor-key :actor} step-result]
+                      (cond
+                        ; reset the atoms back to the empty state and provide access to system for seeding data
+                        reset (do
+                                (reset! system empty-system)
+                                (reset system))
+                        handler
+                        (let [{from-actor    :actor
+                               from-location :location} (actor-meta model-parsed actor-key)
+                              from-ports (-> from-actor :ports keys set)
+                              from-keyword (keyword (name (:id from-location))
+                                                    (name (:id from-actor)))
+                              state-stores (reduce (fn [acc state-meta]
+                                                     (assoc acc (:id state-meta)
+                                                                (or (-> @system :state-stores (get (:id state-meta)))
+                                                                    (let [new-store (state-store-wrapped (state-store) state-meta)]
+                                                                      (swap! system assoc-in [:state-stores (:id state-meta)] new-store)
+                                                                      new-store))))
+                                                   {}
+                                                   (vals (:state from-location)))
+                              handler-context {:state    state-stores
+                                               :messages (get-in @system [:messages actor-key])
+                                               :fixtures (get-in @system [:fixtures (:id from-location)])}
+                              current-step {:location from-location
+                                            :actor    from-actor
+                                            :action   action}]
 
-                     (log/info current-step)
+                          (log/info current-step)
 
-                     (try
-                       (when before (before handler-context))
-                       (when handler
-                         (let [{:keys [emit]} (handler handler-context)]
-                           (when emit
-                             (doseq [emitted emit]
-                               (let [emit-middleware (or (:emit middleware) identity)
-                                     message (emit-middleware emitted)
-                                     data-flow (message-data-flow {:model-parsed model-parsed
-                                                                   :message      message
-                                                                   :from-ports   from-ports})]
-                                 (validate-payload! {:system                    system
-                                                     :actor-key                 actor-key
-                                                     :model-parsed              model-parsed
-                                                     :closed-data-flow-schemas? closed-data-flow-schemas?
-                                                     :registry                  registry
-                                                     :message                   message
-                                                     :step                      step
-                                                     :step-info                 current-step})
-                                 ; record emitted messages
-                                 (let [network-message {:data-flow data-flow
-                                                        :message   (assoc message :from from-keyword)}]
-                                   ; for target
-                                   (swap! system update-in [:messages (:to message)] (fnil conj []) network-message)
-                                   ; also track all messages
-                                   (swap! system update-in [:messages :all] (fnil conj []) network-message)))))))
-                       (validate-state-stores! {:system                system
-                                                :model-parsed          model-parsed
-                                                :closed-state-schemas? closed-state-schemas?
-                                                :actor-key             actor-key
-                                                :registry              registry
-                                                :state-schemas-ignored state-schemas-ignored
-                                                :handler-context       handler-context})
-                       (when after (after handler-context))
-                       (catch ExceptionInfo ei
-                         (let [cursive-link (tagged-literal 'cursive/node
-                                                            {:presentation [{:text  "Jump to failing step -> "
-                                                                             :color :link}
-                                                                            {:text  (str (:name (meta step)))
-                                                                             :color :link}]
-                                                             :action       :navigate
-                                                             :file         (:file (meta step))
-                                                             :line         (:line (meta step))
-                                                             :column       0})]
-                           (throw (ex-info "step failed" {:cursive-jump-link cursive-link} ei)))))))))
+                          (try
+                            (when before (before handler-context))
+                            (when handler
+                              (let [{:keys [emit]} (handler handler-context)]
+                                (when emit
+                                  (doseq [emitted emit]
+                                    (let [emit-middleware (or (:emit middleware) identity)
+                                          message (emit-middleware emitted)
+                                          data-flow (message-data-flow {:model-parsed model-parsed
+                                                                        :message      message
+                                                                        :from-ports   from-ports})]
+                                      (validate-payload! {:system                    system
+                                                          :actor-key                 actor-key
+                                                          :model-parsed              model-parsed
+                                                          :closed-data-flow-schemas? closed-data-flow-schemas?
+                                                          :registry                  registry
+                                                          :message                   message
+                                                          :step                      step
+                                                          :step-info                 current-step})
+                                      ; record emitted messages
+                                      (let [network-message {:data-flow data-flow
+                                                             :message   (assoc message :from from-keyword)}]
+                                        ; for target
+                                        (swap! system update-in [:messages (:to message)] (fnil conj []) network-message)
+                                        ; also track all messages
+                                        (swap! system update-in [:messages :all] (fnil conj []) network-message)))))))
+                            (validate-state-stores! {:system                system
+                                                     :model-parsed          model-parsed
+                                                     :closed-state-schemas? closed-state-schemas?
+                                                     :actor-key             actor-key
+                                                     :registry              registry
+                                                     :state-schemas-ignored state-schemas-ignored
+                                                     :handler-context       handler-context})
+                            (when after (after handler-context))
+                            (catch ExceptionInfo ei
+                              (let [cursive-link (tagged-literal 'cursive/node
+                                                                 {:presentation [{:text  "Jump to failing step -> "
+                                                                                  :color :link}
+                                                                                 {:text  (str (:name (meta step)))
+                                                                                  :color :link}]
+                                                                  :action       :navigate
+                                                                  :file         (:file (meta step))
+                                                                  :line         (:line (meta step))
+                                                                  :column       0})]
+                                (throw (ex-info "step failed" {:cursive-jump-link cursive-link} ei)))))))))
         lookup-state-store-type (->> model-parsed
                                      (select [:locations MAP-VALS :state MAP-VALS])
                                      (map (juxt :id :type))
                                      (into {}))
-        state-snapshots (atom {:initial nil
-                               :diffs   []})]
+        state-snapshots (atom {:diffs []
+                               :emits {}})
+        state-edn (fn [] (->> (:state-stores @system)
+                              (reduce-kv (fn [acc k v]
+                                           (assoc acc k
+                                                      (case (lookup-state-store-type k)
+                                                        :database (as-map v)
+                                                        :associative (as-lookup v))))
+                                         {})))]
 
     (doseq [step steps]
-      (run! step)
-      (let [state-edn (->> (:state-stores @system)
-                           (reduce-kv (fn [acc k v]
-                                        (assoc acc k
-                                                   (case (lookup-state-store-type k)
-                                                     :database (as-map v)
-                                                     :associative (as-lookup v))))
-                                      {}))]
-        (if-let [prev (:initial @state-snapshots)]
-          (swap! state-snapshots update :diffs conj (edit/diff prev state-edn))
-          (swap! state-snapshots assoc :initial state-edn))))
+      (let [message-count #(count (get-in @system [:messages :all]))
+            message-count-before (message-count)]
+        (run-step! step)
+        (let [state-after (state-edn)
+              message-count-after (message-count)
+              messages-emitted (- message-count-after message-count-before)]
+          (when (pos-int? messages-emitted)
+            (let [{:keys [diffs]} @state-snapshots
+                  diffs-needed (inc (count diffs))
+                  message-diffs (reduce (fn [acc message-index]
+                                          (assoc acc message-index diffs-needed))
+                                        {}
+                                        (range message-count-before message-count-after))]
+              (swap! state-snapshots update :emits merge message-diffs)))
+          (swap! state-snapshots update :diffs conj (edit/diff (:latest @state-snapshots) state-after))
+          (swap! state-snapshots assoc :latest state-after))))
+
+    ;(clojure.pprint/pprint (:emits @state-snapshots))
+    ; TODO cljc hydration fn, shared with reagent app, invariant asserted in CI for all tests
+    (comment (reduce edit/patch {} (:diffs @state-snapshots)))
 
     (log/info "post-test actions...")
 
@@ -470,7 +482,6 @@
                               :diagram-config diagram-config
                               :system         system
                               :model-parsed   model-parsed
-                              :states         @state-snapshots
-                              :steps          steps})
+                              :states         @state-snapshots})
 
     @system))
