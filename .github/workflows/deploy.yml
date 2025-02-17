@@ -21,10 +21,8 @@ jobs:
 
       - name: Install Clojure & Shadow CLJS
         run: |
-          sudo apt-get install -y curl
-          curl -O https://download.clojure.org/install/linux-install-1.11.1.sh
-          chmod +x linux-install-1.11.1.sh
-          sudo ./linux-install-1.11.1.sh
+          sudo apt update
+          sudo apt install -y clojure rlwrap
           npm install -g shadow-cljs
 
 # TODO run core and example tests
