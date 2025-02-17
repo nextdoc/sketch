@@ -1,4 +1,5 @@
-(ns mobile-weather-app.weather-domain)
+(ns ^{:doc "Pure Functions Implementing Business Logic"}
+  mobile-weather-app.weather-domain)
 
 (defn user-with-status
   "Implement business rules about user activity based on matches from database"

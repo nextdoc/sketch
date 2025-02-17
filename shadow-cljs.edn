@@ -1,0 +1,10 @@
+{:deps     true
+
+ :nrepl    {:port 8330}
+
+ :dev-http {8000 {:root "public"}}
+
+ :builds   {:diagram {:target     :browser
+                      :modules    {:main {:init-fn io.nextdoc.sketch.browser.diagram-app/mount!}}
+                      :output-dir "public/diagram-js"
+                      :asset-path "/diagram-js"}}}

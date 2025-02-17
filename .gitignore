@@ -3,3 +3,7 @@
 /.idea/
 /sketch.iml
 /target/
+.aider*
+/.shadow-cljs/
+/node_modules/
+/public/

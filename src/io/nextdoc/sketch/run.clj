@@ -1,9 +1,11 @@
 (ns io.nextdoc.sketch.run
   (:require [aero.core :refer [read-config]]
+            [clojure.data.json :as json]
+            [editscript.core :as edit]
             [clojure.java.io :as io]
             [clojure.pprint :as pprint]
             [clojure.string :as str]
-            [com.rpl.specter :refer [ALL MAP-VALS collect-one multi-path select select-first]]
+            [com.rpl.specter :refer [ALL MAP-VALS collect-one multi-path select select-first MAP-KEYS transform collect]]
             [hiccup.core :refer [html]]
             [malli.core :as m]
             [malli.dev.pretty :as mp]
@@ -244,19 +246,40 @@
       (log/warn "  use nextdoc.fbp.stream3-sketch"))))
 
 (defn sequence-diagram-page
-  [{:keys [diagram title]}]
+  [{:keys [diagram title step-count model states]}]
   [:html {:lang "en"}
    [:head
     [:meta {:charset "UTF-8"}]
     [:meta {:name "viewport" :content "width=device-width, initial-scale=1.0"}]
     [:title title]
     [:script {:src "https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"}]
-    [:script "mermaid.initialize({ startOnLoad: true });"]]
+    [:script {:src "https://d3js.org/d3.v7.min.js"}]
+    [:script {:src "https://unpkg.com/d3-graphviz/build/d3-graphviz.min.js"}]
+    [:script "mermaid.initialize({ startOnLoad: true, securityLevel: 'loose' });"]]
    [:body
-    [:div.mermaid diagram]]])
+    [:div.mermaid diagram]
+    [:div#app]
+    [:script {:src "http://localhost:8000/diagram-js/main.js"}]
+    (let [actors (->> model
+                      (select [:locations MAP-VALS (collect-one :id)
+                               (collect [:actors MAP-KEYS])
+                               :state MAP-KEYS])
+                      (reduce (fn [acc [location [actor] state]]
+                                (update-in acc
+                                           [(keyword (str (name location) "-" (name actor))) :store]
+                                           (fnil conj #{}) state))
+                              {}))]
+      [:script (format "io.nextdoc.sketch.browser.diagram_app.loadTest(%s, %s);"
+                       (-> states
+                           (update :diffs #(mapv edit/get-edits %)) ; serializable diffs
+                           (pr-str)
+                           (json/write-str))
+                       (-> actors
+                           (pr-str)
+                           (json/write-str)))])]])
 
 (defn write-sequence-diagram!
-  [{:keys [test-ns-str diagram-dir diagram-config system model-parsed]}]
+  [{:keys [test-ns-str diagram-dir diagram-config system model-parsed states steps]}]
   (let [test-name (as-> test-ns-str $
                         (str/split $ #"\.")
                         (last $))
@@ -272,8 +295,11 @@
     (log/info "updating diagram artifacts:" file-name)
     (io/make-parents (io/file file-name))
     (spit (str file-name ".mmd") diagram)
-    (spit (str file-name ".html") (-> {:diagram diagram
-                                       :title   test-name}
+    (spit (str file-name ".html") (-> {:diagram    diagram
+                                       :title      test-name
+                                       :states     states
+                                       :step-count (count steps)
+                                       :model      model-parsed}
                                       (sequence-diagram-page)
                                       (html)))
     (log/info success-string)))
@@ -411,12 +437,26 @@
                                                              :file         (:file (meta step))
                                                              :line         (:line (meta step))
                                                              :column       0})]
-                           (throw (ex-info "step failed" {:cursive-jump-link cursive-link} ei)))))))))]
-
-    ; TODO snapshots the state stores after each step for diagrams
+                           (throw (ex-info "step failed" {:cursive-jump-link cursive-link} ei)))))))))
+        lookup-state-store-type (->> model-parsed
+                                     (select [:locations MAP-VALS :state MAP-VALS])
+                                     (map (juxt :id :type))
+                                     (into {}))
+        state-snapshots (atom {:initial nil
+                               :diffs   []})]
 
     (doseq [step steps]
-      (run! step))
+      (run! step)
+      (let [state-edn (->> (:state-stores @system)
+                           (reduce-kv (fn [acc k v]
+                                        (assoc acc k
+                                                   (case (lookup-state-store-type k)
+                                                     :database (as-map v)
+                                                     :associative (as-lookup v))))
+                                      {}))]
+        (if-let [prev (:initial @state-snapshots)]
+          (swap! state-snapshots update :diffs conj (edit/diff prev state-edn))
+          (swap! state-snapshots assoc :initial state-edn))))
 
     (log/info "post-test actions...")
 
@@ -426,6 +466,8 @@
                               :diagram-dir    diagram-dir
                               :diagram-config diagram-config
                               :system         system
-                              :model-parsed   model-parsed})
+                              :model-parsed   model-parsed
+                              :states         @state-snapshots
+                              :steps          steps})
 
     @system))
