@@ -1,0 +1,50 @@
+name: Deploy to GitHub Pages (Versioned)
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - '*'  # Runs when a tag is pushed
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Ensure we can retrieve tags
+
+      - name: Install Clojure & Shadow CLJS
+        run: |
+          sudo apt-get install -y curl
+          curl -O https://download.clojure.org/install/linux-install-1.11.1.sh
+          chmod +x linux-install-1.11.1.sh
+          sudo ./linux-install-1.11.1.sh
+          npm install -g shadow-cljs
+
+      - name: Get version identifier
+        id: version
+        run: |
+          TAG=$(git describe --tags --always --dirty)
+          echo "tag=${TAG}" >> $GITHUB_ENV
+          echo "Tag resolved: ${TAG}"
+
+      - name: Shadow CLJS Release Build
+        run: |
+          npx shadow-cljs release diagram          
+
+      - name: Deploy the static artifacts
+        run: |
+          mkdir -p dist
+          cp -r public/diagram-js/main.js* dist/${{ env.tag }}/
+
+      - name: Deploy to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: gh-pages
+          folder: dist

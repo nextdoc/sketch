@@ -1,13 +1,18 @@
-# Sketch: Network Modelling
+# Network Modelling
+
+Clojure software architects often say that we add schemas "at the boundaries"
+
+Sketch allows you to model and test the entire system with those boundaries, before building and deploying any
+components.
 
 ## Why
 
 - network systems are hard to reason about before built
 - can't test distributed assertions until built
-- hard to uncover design bugs like race conditions
-- systems grow in complexity quickly
+- hard to uncover design bugs like race conditions, cache invalidation, etc
+- distributed systems grow in complexity quickly
 - hard to think about high level system
-- initial naming is easy but also easy to evolve without a naming standard
+- initial naming is easy but also easy to diverge from initial naming standard
 - hard to communicate designs before built
 
 ## How
@@ -24,14 +29,15 @@
     - bootstrap Malli schema
         - manually populate schemas maintaining naming standard
     - sync Malli schema as db changes
+        - file watcher
         - rewrite-clj diffs schemas and adds missing keywords in alphabetical order
     - validate
         - schema names stick to naming standard
         - schema keywords follow idioms e.g. kebab-case everywhere
         - decoders (h/t Malli) for non-clojure keys
     - generate diagrams
-        - state stores
-        - data flow events
+        - data flow sequence
+        - distributed state changes after each data flow event
     - generate non-clojure code
         - Typescript/Zod TODO
         - Apex TODO
