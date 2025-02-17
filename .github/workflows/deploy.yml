@@ -19,10 +19,30 @@ jobs:
         with:
           fetch-depth: 0  # Ensure we can retrieve tags
 
-      - name: Instal Clojure
-        uses: DeLaGuardo/setup-clojure@11
+      - name: Prepare java
+        uses: actions/setup-java@v3
         with:
-          tools-deps: 1.11.1
+          distribution: 'zulu'
+          java-version: '12'
+
+      - name: Install clojure tools
+        uses: DeLaGuardo/setup-clojure@11.0
+        with:
+          cli: 1.11.4.1474             # Clojure CLI based on tools.deps
+          #bb: 0.7.8                    # Babashka
+          #clj-kondo: 2022.05.31        # Clj-kondo
+
+      - name: Cache clojure dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.m2/repository
+            ~/.gitlibs
+            ~/.deps.clj
+          # List all files containing dependencies:
+          key: cljdeps-${{ hashFiles('deps.edn') }}
+          # key: cljdeps-${{ hashFiles('deps.edn', 'bb.edn') }}
+          restore-keys: cljdeps-
 
       - name: Get version identifier
         id: version
