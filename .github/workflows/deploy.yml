@@ -23,6 +23,7 @@ jobs:
         run: |
           sudo apt update
           sudo apt install -y clojure rlwrap
+          clojure -P
           npm install
 
 # TODO run core and example tests
