@@ -1,9 +1,8 @@
 (ns io.nextdoc.sketch.browser.diagram-app
   (:require [cljs.reader :as reader]
+            [com.rpl.specter :refer [ALL MAP-KEYS MAP-VALS collect collect-one multi-path select select-first transform]]
             [editscript.core :as edit]
             [goog.string :as gstring]
-            [com.rpl.specter :refer [ALL MAP-VALS collect-one multi-path select select-first MAP-KEYS transform collect]]
-            [sc.api]
             [goog.string.format]
             [reagent.core :as r]
             [reagent.dom.client :as rdc]))

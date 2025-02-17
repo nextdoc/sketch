@@ -23,8 +23,7 @@ jobs:
         run: |
           sudo apt update
           sudo apt install -y clojure rlwrap
-          clojure -P
-          npm install -g shadow-cljs
+          npm install
 
 # TODO run core and example tests
 
@@ -37,8 +36,7 @@ jobs:
 
       - name: Shadow CLJS Release Build
         run: |
-          npx shadow-cljs info          
-          npx shadow-cljs release diagram          
+          clojure -M:cljs-diagram:build release diagram          
 
       - name: Deploy the static artifacts
         run: |
