@@ -60,8 +60,8 @@ jobs:
 
       - name: Deploy the static artifacts
         run: |
-          mkdir -p dist
-          cp -r public/diagram-js/main.js* dist/${{ env.tag }}/
+          mkdir -p dist/${{ env.tag }}
+          cp -r public/diagram-js/main.js* dist/${{ env.tag }}
 
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
