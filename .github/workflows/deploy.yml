@@ -60,10 +60,10 @@ jobs:
           key: cljdeps-${{ hashFiles('deps.edn', 'package.json') }}
           restore-keys: cljdeps-
 
-      - name: Deploy the static artifacts
+      - name: Deploy static artifacts
         run: |
           mkdir -p dist/${{ env.tag }}
-          cp -r public/diagram-js/main.js* dist/${{ env.tag }}
+          cp -rv public/diagram-js/main.js* dist/${{ env.tag }}
 
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
