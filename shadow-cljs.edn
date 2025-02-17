@@ -4,7 +4,9 @@
 
  :dev-http {8000 {:root "public"}}
 
- :builds   {:diagram {:target     :browser
-                      :modules    {:main {:init-fn io.nextdoc.sketch.browser.diagram-app/mount!}}
-                      :output-dir "public/diagram-js"
-                      :asset-path "/diagram-js"}}}
+ :builds   {:diagram {:target           :browser
+                      :modules          {:main {:init-fn io.nextdoc.sketch.browser.diagram-app/mount!}}
+                      :output-dir       "public/diagram-js"
+                      :asset-path       "/diagram-js"
+                      :compiler-options {:source-map              true
+                                         :source-map-detail-level :all}}}}
