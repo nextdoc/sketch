@@ -28,6 +28,13 @@
                          :payload {:type      :user-info
                                    :user-name (:user-name new-user)}}]}))})
 
+(defn lambda-cold-start []
+  {:actor   :aws/lambda
+   :action  "AWS loads environment settings for Lambda"
+   :handler (fn [{:keys [state]}]
+              (sketch-run/put-value! (:env state) "API_KEY" "secretkey")
+              {:emit []})})
+
 (defn api-user-info-response []
   {:actor   :aws/lambda
    :action  "API upserts user and responds with status"
@@ -43,6 +50,8 @@
 
 ; TODO app loads location, requests weather
 ; TODO api tracks user location. evil!
+; TODO lambda calls openweatherapi
+; TODO lambda pushes update
 
 ;;;; TEST UTILS ;;;;
 
@@ -62,6 +71,7 @@
             :state-schemas-ignored #{}}))
 
 (def app-start-steps '[app-user-info-request
+                       lambda-cold-start
                        api-user-info-response])
 
 ; step thunks with indirection so exceptions can provide location
