@@ -59,7 +59,7 @@ jobs:
           restore-keys: cljdeps-release-
 
           # https://github.com/ncipollo/release-action
-      - name: Create GitHub Release and Upload Artifact
+      - name: Create GitHub Release
         uses: ncipollo/release-action@v1
         with:
           tag: ${{ github.ref_name }}
