@@ -5,27 +5,27 @@ Clojure software architects often say that we add schemas "at the boundaries"
 Sketch allows you to model and test the entire system with those boundaries, before building and deploying any
 components.
 
-https://github.com/nextdoc/sketch
+[Github Repo](https://github.com/nextdoc/sketch)
 
-## Demo
+### Demo
 
-This test...
-https://github.com/nextdoc/sketch/blob/main/examples/mobile_weather_app/happy_path_test.clj
-generates this static html file when run...
-https://nextdoc.github.io/sketch/mobile-weather-app/happy-path-test.html
+[This test](https://github.com/nextdoc/sketch/blob/main/examples/mobile_weather_app/happy_path_test.clj)
+generates [this static html file](https://nextdoc.github.io/sketch/mobile-weather-app/happy-path-test.html) when run
 
 The actors and the step labels are clickable and this will display the state stored by each actor at any step in the
 test.
 This makes it a very effective storytelling tool.
 
-You can clone this repo and run it yourself locally if you want to play with it.
-If you do clone it, you can try the following:
+You can clone the repo and run it yourself locally if you want to play with it.
+If you do, try this:
 
 - Change one of the emitted messages and see that data-flow is validated by the test
 - Change some of the data that is persisted to storage and see that state is validated by the test
 - Comment out some of the test steps and see the diagram change when the test is run
+- Start the model watcher (top of test)
+  - uncomment the :delete-me request in weather-model and see the changes in weather-registry.cljc
 
-## Why
+### Why
 
 - network systems are hard to reason about before built
 - can't test distributed assertions until built
@@ -35,7 +35,7 @@ If you do clone it, you can try the following:
 - initial naming is easy but also easy to diverge from initial naming standard
 - hard to communicate designs before built
 
-## How
+### How
 
 - start with EDN declaration of system shape
     - actors
@@ -85,7 +85,7 @@ If you do clone it, you can try the following:
     - exceptions
         - Cursive Seeker link to failing step
 
-## Results
+## Benefits
 
 - design system before implementation
 - reasoning about total system easier with diagrams (state and sequence)
@@ -103,9 +103,8 @@ If you do clone it, you can try the following:
 
 ## Status
 
-- Early alpha: likely to change but we'll endeavour to keep the test API stable
--
-
-## Influences
-
-https://github.com/clj-commons/rewrite-clj/blob/main/doc/01-user-guide.adoc
+- Early alpha: likely to change but we'll try to avoid breaking changes to the test api
+- Diagram app is a POC, needs [cleanup](https://github.com/nextdoc/sketch/issues/6)
+- Very few tests
+- Sparse documentation
+- Limited bandwidth to work on it until [Nextdoc.io](https://nextdoc.io/) grows
