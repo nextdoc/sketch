@@ -1,0 +1,73 @@
+name: Deploy to GitHub Pages (Versioned)
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Ensure we can retrieve tags
+
+      - name: Prepare java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '12'
+
+      - name: Install clojure tools
+        uses: DeLaGuardo/setup-clojure@11.0
+        with:
+          cli: 1.11.4.1474              # Clojure CLI based on tools.deps
+          bb: 1.12.196                 # Babashka
+          #clj-kondo: 2022.05.31        # Clj-kondo
+
+      - name: Get version identifier
+        id: version
+        run: |
+          TAG=$(git describe --tags --always --dirty)
+          echo "tag=${TAG}" >> $GITHUB_ENV
+          echo "Tag resolved: ${TAG}"
+
+      - name: Clojure Tests incl examples
+        run: |
+          clojure -M:examples:cljs-diagram:test-cli          
+
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.m2/repository
+            ~/.gitlibs
+            ~/.deps.clj
+            ~/node_modules
+          # List all files containing dependencies
+          key: cljdeps-${{ hashFiles('deps.edn', 'package.json', 'bb.edn') }}
+          restore-keys: cljdeps-
+
+      - name: Create static artifacts
+        run: |
+          mkdir -p dist/mobile-weather-app
+          bb generate
+          cp -v doc/docs.css dist/docs.css 
+          cp -v doc/README.html dist/index.html           
+          cp -v target/sketch-diagrams/mobile-weather-app/happy-path-test.html dist/mobile-weather-app/happy-path-test.html
+
+      # https://github.com/marketplace/actions/deploy-to-github-pages
+      - name: Deploy static artifacts to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: gh-pages
+          folder: dist
+          # keep prev tag versions for backwards compatibility
+          clean: false
+#          clean-exclude: |
+#            0.1.*/**

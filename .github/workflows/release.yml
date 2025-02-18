@@ -59,22 +59,3 @@ jobs:
           # List all files containing dependencies
           key: cljdeps-${{ hashFiles('deps.edn', 'package.json', 'bb.edn') }}
           restore-keys: cljdeps-
-
-      - name: Create static artifacts
-        run: |
-          mkdir -p dist/${{ env.tag }}
-          bb generate
-          cp -v doc/docs.css dist/docs.css 
-          cp -v doc/README.html dist/index.html 
-          cp -rv public/diagram-js/main.js* dist/${{ env.tag }}
-          mkdir -p dist/mobile-weather-app
-          cp -v target/sketch-diagrams/mobile-weather-app/happy-path-test.html dist/mobile-weather-app/happy-path-test.html
-
-      # https://github.com/marketplace/actions/deploy-to-github-pages
-      - name: Deploy static artifacts to GitHub Pages
-        uses: JamesIves/github-pages-deploy-action@v4
-        with:
-          branch: gh-pages
-          folder: dist
-          # keep prev tag versions for backwards compatibility
-          clean-exclude: 0.1.*
