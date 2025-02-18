@@ -23,17 +23,6 @@ jobs:
           distribution: 'zulu'
           java-version: '12'
 
-      - name: Install clojure tools
-        uses: DeLaGuardo/setup-clojure@11.0
-        with:
-          cli: 1.11.4.1474              # Clojure CLI based on tools.deps
-          bb: 1.12.196                 # Babashka
-          #clj-kondo: 2022.05.31        # Clj-kondo
-
-      - name: Clojure Tests including examples
-        run: |
-          clojure -M:examples:cljs-diagram:test-cli          
-
       - name: Cache dependencies
         uses: actions/cache@v3
         with:
@@ -45,6 +34,17 @@ jobs:
           # List all files containing dependencies
           key: cljdeps-publish-${{ hashFiles('deps.edn', 'package.json', 'bb.edn') }}
           restore-keys: cljdeps-publish-
+
+      - name: Install clojure tools
+        uses: DeLaGuardo/setup-clojure@11.0
+        with:
+          cli: 1.11.4.1474              # Clojure CLI based on tools.deps
+          bb: 1.12.196                 # Babashka
+          #clj-kondo: 2022.05.31        # Clj-kondo
+
+      - name: Clojure Tests including examples
+        run: |
+          clojure -M:examples:cljs-diagram:test-cli          
 
       - name: Create site pages
         run: |

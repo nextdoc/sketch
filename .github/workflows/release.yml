@@ -23,6 +23,18 @@ jobs:
           distribution: 'zulu'
           java-version: '12'
 
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.m2/repository
+            ~/.gitlibs
+            ~/.deps.clj
+            ~/node_modules
+          # List all files containing dependencies
+          key: cljdeps-release-${{ hashFiles('deps.edn', 'package.json', 'bb.edn') }}
+          restore-keys: cljdeps-release-
+
       - name: Install clojure tools
         uses: DeLaGuardo/setup-clojure@11.0
         with:
@@ -41,24 +53,12 @@ jobs:
         run: |
           clojure -M:examples:cljs-diagram:test-cli          
 
-      - name: Shadow CLJS Release Build diagram SPA js
+      - name: Shadow CLJS Release Build diagram SPA main.js w/ source map
         run: |
           npm install
           clojure -M:cljs-diagram:build release diagram          
 
-      - name: Cache dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.m2/repository
-            ~/.gitlibs
-            ~/.deps.clj
-            ~/node_modules
-          # List all files containing dependencies
-          key: cljdeps-release-${{ hashFiles('deps.edn', 'package.json', 'bb.edn') }}
-          restore-keys: cljdeps-release-
-
-          # https://github.com/ncipollo/release-action
+      # https://github.com/ncipollo/release-action
       - name: Create GitHub Release
         uses: ncipollo/release-action@v1
         with:
@@ -66,7 +66,7 @@ jobs:
           name: Release ${{ github.ref_name }}
           body: |
             Automated release of the JavaScript artifact generated from ClojureScript.
-          artifacts: dist/main.js,dist/main.map.js
+          artifacts: public/diagram-js/main.js,public/diagram-js/main.js.map
           draft: false
           prerelease: false
         env:
