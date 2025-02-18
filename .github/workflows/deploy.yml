@@ -64,9 +64,10 @@ jobs:
         run: |
           mkdir -p dist/${{ env.tag }}
           bb generate
-          cp -v target/README.md.html dist/index.html
-          cp -v target/sketch-diagrams/mobile-weather-app/happy-path-test.html dist/mobile-weather-app/happy-path-test.html
+          cp -v target/README.md.html dist/index.html 
           cp -rv public/diagram-js/main.js* dist/${{ env.tag }}
+          mkdir -p dist/mobile-weather-app
+          cp -v target/sketch-diagrams/mobile-weather-app/happy-path-test.html dist/mobile-weather-app/happy-path-test.html
 
       - name: Deploy static artifacts to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
