@@ -56,18 +56,17 @@ jobs:
       - name: Shadow CLJS Release Build diagram SPA main.js w/ source map
         run: |
           npm install
-          clojure -M:cljs-diagram:build release diagram          
+          clojure -M:cljs-diagram:build release diagram
+          mkdir -p app
+          cp -v public/diagram-js/main.js app/main.js
+          cp -v public/diagram-js/main.js.map app/main.js.map
 
-      # https://github.com/ncipollo/release-action
-      - name: Create GitHub Release
-        uses: ncipollo/release-action@v1
-        with:
-          tag: ${{ github.ref_name }}
-          name: Release ${{ github.ref_name }}
-          body: |
-            Automated release of the JavaScript artifact generated from ClojureScript.
-          artifacts: public/diagram-js/main.js,public/diagram-js/main.js.map
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Commit generated JS file to artifacts branch
+        run: |
+          git fetch origin artifacts || git checkout --orphan artifacts
+          git checkout artifacts
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add app/main.js app/main.js.map
+          git commit -m "Add generated artifacts for ${{ github.ref_name }}" || echo "No changes to commit"
+          git push origin HEAD:artifacts
