@@ -1,0 +1,17 @@
+{:deps  {markdown-clj/markdown-clj {:git/url "https://github.com/yogthos/markdown-clj"
+                                    :sha     "473411d12c5a98e27b3bf0e035184dbb1f50f785"}}
+
+ :tasks {:requires ([babashka.fs :as fs]
+                    [markdown.core :as md])
+
+         generate  {:task (let [input-dir "."
+                                output-dir "target"]
+                            (fs/create-dirs output-dir)
+                            (doseq [file ["README.md"]]
+                              (let [markdown-content (slurp file)
+                                    html-content (md/md-to-html-string markdown-content)
+                                    output-file (str output-dir "/" (fs/file-name file) ".html")]
+                                (spit output-file html-content)
+                                (println "Generated:" output-file))))}
+
+         }}

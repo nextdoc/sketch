@@ -28,8 +28,8 @@ jobs:
       - name: Install clojure tools
         uses: DeLaGuardo/setup-clojure@11.0
         with:
-          cli: 1.11.4.1474             # Clojure CLI based on tools.deps
-          #bb: 0.7.8                    # Babashka
+          cli: 1.11.4.1474              # Clojure CLI based on tools.deps
+          bb: v1.12.196                 # Babashka
           #clj-kondo: 2022.05.31        # Clj-kondo
 
       - name: Get version identifier
@@ -56,16 +56,18 @@ jobs:
             ~/.gitlibs
             ~/.deps.clj
             ~/node_modules
-          # List all files containing dependencies: TODO bb.edn
-          key: cljdeps-${{ hashFiles('deps.edn', 'package.json') }}
+          # List all files containing dependencies
+          key: cljdeps-${{ hashFiles('deps.edn', 'package.json', 'bb.edn') }}
           restore-keys: cljdeps-
 
       - name: Deploy static artifacts
         run: |
           mkdir -p dist/${{ env.tag }}
+          bb generate
+          cp -v target/README.md.html dist/index.html
           cp -rv public/diagram-js/main.js* dist/${{ env.tag }}
 
-      - name: Deploy to GitHub Pages
+      - name: Deploy js artifacts to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           branch: gh-pages
