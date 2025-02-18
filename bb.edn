@@ -7,10 +7,11 @@
                     [hiccup.page :refer [html5]])
 
          generate  {:task (let [input-dir "."
-                                output-dir "target"]
+                                output-dir "doc"]
                             (fs/create-dirs output-dir)
                             (doseq [file ["README.md"]]
-                              (let [markdown-content (slurp file)
+                              (let [file (fs/file file)
+                                    markdown-content (slurp file)
                                     body-content (md/md-to-html-string markdown-content)
                                     css-file "docs.css"
                                     html-content (html5
@@ -20,7 +21,7 @@
                                                     [:title "Markdown Rendered Page"]
                                                     [:link {:rel "stylesheet" :type "text/css" :href css-file}]]
                                                    [:body [:div {:class "content"} body-content]])
-                                    output-file (str output-dir "/" (fs/file-name file) ".html")]
+                                    output-file (str output-dir "/" (fs/strip-ext file) ".html")]
                                 (spit output-file html-content)
                                 (println "Generated:" output-file))))}
          }}
