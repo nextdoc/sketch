@@ -16,8 +16,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Ensure we can retrieve tags
 
       - name: Prepare java
         uses: actions/setup-java@v3
@@ -31,13 +29,6 @@ jobs:
           cli: 1.11.4.1474              # Clojure CLI based on tools.deps
           bb: 1.12.196                 # Babashka
           #clj-kondo: 2022.05.31        # Clj-kondo
-
-      - name: Get version identifier
-        id: version
-        run: |
-          TAG=$(git describe --tags --always --dirty)
-          echo "tag=${TAG}" >> $GITHUB_ENV
-          echo "Tag resolved: ${TAG}"
 
       - name: Clojure Tests including examples
         run: |

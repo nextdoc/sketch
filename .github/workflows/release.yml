@@ -57,3 +57,17 @@ jobs:
           # List all files containing dependencies
           key: cljdeps-release-${{ hashFiles('deps.edn', 'package.json', 'bb.edn') }}
           restore-keys: cljdeps-release-
+
+          # https://github.com/ncipollo/release-action
+      - name: Create GitHub Release and Upload Artifact
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          body: |
+            Automated release of the JavaScript artifact generated from ClojureScript.
+          artifacts: dist/main.js,dist/main.map.js
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
