@@ -6,19 +6,18 @@
                     [markdown.core :as md]
                     [hiccup.page :refer [html5]])
 
-         generate  {:task (let [input-dir "."
+         generate  {:task (let [input-dir "doc"
                                 output-dir "doc"]
                             (fs/create-dirs output-dir)
-                            (doseq [file ["README.md"]]
-                              (let [file (fs/file file)
-                                    markdown-content (slurp file)
+                            (doseq [file ["home.md"]]
+                              (let [markdown-content (slurp (str input-dir "/" file))
                                     body-content (md/md-to-html-string markdown-content)
                                     css-file "docs.css"
                                     html-content (html5
                                                    [:head
                                                     [:meta {:charset "UTF-8"}]
                                                     [:meta {:name "viewport" :content "width=device-width, initial-scale=1"}]
-                                                     [:title "Sketch: Network Modelling"]
+                                                    [:title "Sketch: Network Modelling"]
                                                     [:link {:rel "stylesheet" :type "text/css" :href css-file}]]
                                                    [:body [:div {:class "content"} body-content]])
                                     output-file (str output-dir "/" (fs/strip-ext file) ".html")]

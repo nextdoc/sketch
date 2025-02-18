@@ -51,7 +51,7 @@ jobs:
           mkdir -p dist/mobile-weather-app
           bb generate
           cp -v doc/docs.css dist/docs.css 
-          cp -v doc/README.html dist/index.html           
+          cp -v doc/home.html dist/index.html           
           cp -v target/sketch-diagrams/mobile-weather-app/happy-path-test.html dist/mobile-weather-app/happy-path-test.html
 
       - name: Upload static files as artifact
