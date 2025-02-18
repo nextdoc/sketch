@@ -29,7 +29,7 @@ jobs:
         uses: DeLaGuardo/setup-clojure@11.0
         with:
           cli: 1.11.4.1474              # Clojure CLI based on tools.deps
-          bb:  1.12.196                 # Babashka
+          bb: 1.12.196                 # Babashka
           #clj-kondo: 2022.05.31        # Clj-kondo
 
       - name: Get version identifier
@@ -70,8 +70,11 @@ jobs:
           mkdir -p dist/mobile-weather-app
           cp -v target/sketch-diagrams/mobile-weather-app/happy-path-test.html dist/mobile-weather-app/happy-path-test.html
 
+      # https://github.com/marketplace/actions/deploy-to-github-pages
       - name: Deploy static artifacts to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           branch: gh-pages
           folder: dist
+          # keep prev tag versions for backwards compatibility
+          clean-exclude: 0.1.*
