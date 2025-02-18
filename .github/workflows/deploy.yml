@@ -39,11 +39,11 @@ jobs:
           echo "tag=${TAG}" >> $GITHUB_ENV
           echo "Tag resolved: ${TAG}"
 
-      - name: Clojure Tests
+      - name: Clojure Tests incl examples
         run: |
           clojure -M:examples:cljs-diagram:test-cli          
 
-      - name: Shadow CLJS Release Build
+      - name: Shadow CLJS Release Build diagram js
         run: |
           npm install
           clojure -M:cljs-diagram:build release diagram          
@@ -60,14 +60,15 @@ jobs:
           key: cljdeps-${{ hashFiles('deps.edn', 'package.json', 'bb.edn') }}
           restore-keys: cljdeps-
 
-      - name: Deploy static artifacts
+      - name: Create static artifacts
         run: |
           mkdir -p dist/${{ env.tag }}
           bb generate
           cp -v target/README.md.html dist/index.html
+          cp -v target/sketch-diagrams/mobile-weather-app/happy-path-test.html dist/mobile-weather-app/happy-path-test.html
           cp -rv public/diagram-js/main.js* dist/${{ env.tag }}
 
-      - name: Deploy js artifacts to GitHub Pages
+      - name: Deploy static artifacts to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           branch: gh-pages
