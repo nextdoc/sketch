@@ -58,7 +58,7 @@
        "    <TABLE BGCOLOR='white' BORDER='0' CELLBORDER='1' CELLSPACING='0' CELLPADDING='4'>\n"
        (apply str
               (for [[k v] data]
-                (str "      <TR><TD>" (name k) "</TD><TD>" (str v) "</TD></TR>\n")))
+                (str "      <TR><TD ALIGN='LEFT'>" (name k) "</TD><TD ALIGN='LEFT'>" (str v) "</TD></TR>\n")))
        "    </TABLE>\n"
        "  >];\n"
        "}"))
