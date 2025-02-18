@@ -93,55 +93,62 @@
 
 (defn app
   []
-  (let [{:keys [emit-count states actors actors-visible store-types]} @app-state
-        {:keys [diffs emits]} states
-        states-at-step (when (and emit-count states)
-                         (->> diffs
-                              (take (get emits emit-count))
-                              (reduce edit/patch {})))
-        visible-state-stores (->> actors-visible
-                                  (mapv (fn [actor]
-                                          (let [{:keys [store]} (get actors actor)]
-                                            {:actor  actor
-                                             :stores (mapv (fn [store-key]
-                                                             (let [single-store (get states-at-step store-key)
-                                                                   data (reduce-kv (fn [acc k v]
-                                                                                     (if (empty? v)
-                                                                                       acc
-                                                                                       (assoc acc k v)))
-                                                                                   {}
-                                                                                   single-store)]
-                                                               {:store store-key
-                                                                :data  data}))
-                                                           store)}))))]
-    [:div
-     ;[render-pre @app-state]
-     (for [{:keys [actor stores]} visible-state-stores]
-       [:div {:key   (name actor)
-              :style {:border  "2px solid #1740FF"
-                      :padding "1rem"
-                      :margin  "1rem"}}
-        [:div {:style {:margin-bottom "1rem"}} [:b actor]]
-        [:div (for [{:keys [store data]} stores]
-                [:div {:key   (str (name actor) "-" (name store))
-                       :style {:border        "2px solid #7D8FF9"
-                               :padding       "1rem"
-                               :margin-bottom "1rem"}}
-                 [:div store]
-                 [graphviz-component
-                  (case (store-types store)
-                    :database
-                    (->> data
-                         (reduce-kv (fn store-data [acc k v]
-                                      (conj acc {:name (name k)
-                                                 :data (reduce-kv (fn [acc id attrs]
-                                                                    (assoc acc id (merge attrs {:id id})))
-                                                                  {}
-                                                                  v)}))
-                                    [])
-                         (create-tables-diagram))
-                    :associative
-                    (create-map-table data))]])]])]))
+  (try
+    (let [{:keys [emit-count states actors actors-visible store-types]} @app-state
+          {:keys [diffs emits]} states
+          states-at-step (when (and emit-count states)
+                           (->> diffs
+                                (take (get emits emit-count))
+                                (reduce edit/patch {})))
+          visible-state-stores (->> actors-visible
+                                    (mapv (fn [actor]
+                                            (let [{:keys [store]} (get actors actor)]
+                                              {:actor  actor
+                                               :stores (mapv (fn [store-key]
+                                                               (let [single-store (or (get states-at-step store-key)
+                                                                                      (throw (ex-info "store not found"
+                                                                                                      {:key  store-key
+                                                                                                       :keys (keys states-at-step)})))
+                                                                     data (reduce-kv (fn [acc k v]
+                                                                                       (if (empty? v)
+                                                                                         acc
+                                                                                         (assoc acc k v)))
+                                                                                     {}
+                                                                                     single-store)]
+                                                                 {:store store-key
+                                                                  :data  data}))
+                                                             store)}))))]
+      [:div
+       ;[render-pre @app-state]
+       (for [{:keys [actor stores]} visible-state-stores]
+         [:div {:key   (name actor)
+                :style {:border  "2px solid #1740FF"
+                        :padding "1rem"
+                        :margin  "1rem"}}
+          [:div {:style {:margin-bottom "1rem"}} [:b actor]]
+          [:div (for [{:keys [store data]} stores]
+                  [:div {:key   (str (name actor) "-" (name store))
+                         :style {:border        "2px solid #7D8FF9"
+                                 :padding       "1rem"
+                                 :margin-bottom "1rem"}}
+                   [:div store]
+                   [graphviz-component
+                    (case (store-types store)
+                      :database
+                      (->> data
+                           (reduce-kv (fn store-data [acc k v]
+                                        (conj acc {:name (name k)
+                                                   :data (reduce-kv (fn [acc id attrs]
+                                                                      (assoc acc id (merge attrs {:id id})))
+                                                                    {}
+                                                                    v)}))
+                                      [])
+                           (create-tables-diagram))
+                      :associative
+                      (create-map-table data))]])]])])
+    (catch :default e
+      (js/console.error e)
+      [:div "Render failed! See console for more info."])))
 
 (defn toggle-actor!
   [actor-name]
