@@ -64,6 +64,7 @@ jobs:
         run: |
           mkdir -p dist/${{ env.tag }}
           bb generate
+          cp -v doc/docs.css dist/docs.css 
           cp -v target/README.md.html dist/index.html 
           cp -rv public/diagram-js/main.js* dist/${{ env.tag }}
           mkdir -p dist/mobile-weather-app

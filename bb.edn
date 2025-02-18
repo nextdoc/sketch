@@ -1,17 +1,26 @@
 {:deps  {markdown-clj/markdown-clj {:git/url "https://github.com/yogthos/markdown-clj"
-                                    :sha     "473411d12c5a98e27b3bf0e035184dbb1f50f785"}}
+                                    :sha     "473411d12c5a98e27b3bf0e035184dbb1f50f785"}
+         hiccup/hiccup             {:mvn/version "2.0.0-alpha2"}}
 
  :tasks {:requires ([babashka.fs :as fs]
-                    [markdown.core :as md])
+                    [markdown.core :as md]
+                    [hiccup.page :refer [html5]])
 
          generate  {:task (let [input-dir "."
                                 output-dir "target"]
                             (fs/create-dirs output-dir)
                             (doseq [file ["README.md"]]
                               (let [markdown-content (slurp file)
-                                    html-content (md/md-to-html-string markdown-content)
+                                    body-content (md/md-to-html-string markdown-content)
+                                    css-file "docs.css"
+                                    html-content (html5
+                                                   [:head
+                                                    [:meta {:charset "UTF-8"}]
+                                                    [:meta {:name "viewport" :content "width=device-width, initial-scale=1"}]
+                                                    [:title "Markdown Rendered Page"]
+                                                    [:link {:rel "stylesheet" :type "text/css" :href css-file}]]
+                                                   [:body [:div {:class "content"} body-content]])
                                     output-file (str output-dir "/" (fs/file-name file) ".html")]
                                 (spit output-file html-content)
                                 (println "Generated:" output-file))))}
-
          }}
