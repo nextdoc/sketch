@@ -34,6 +34,12 @@
                     :to          #ref [:locations :aws :actors :lambda :ports :handler]
                     :request     :user-info}
 
+                   ; uncomment to play with model watcher
+                   #_{:description "App requests user data is deleted"
+                    :from        #ref [:locations :iphone :actors :weather-app :ports :http-client]
+                    :to          #ref [:locations :aws :actors :lambda :ports :handler]
+                    :request     :delete-me}
+
                    ; push events
                    {:description "Server notifies app that weather in currently visible city changed"
                     :from        #ref [:locations :aws :actors :lambda :ports :handler]
