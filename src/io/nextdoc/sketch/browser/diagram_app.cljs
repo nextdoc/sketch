@@ -147,8 +147,10 @@
                       :associative
                       (create-map-table data))]])]])])
     (catch :default e
-      (js/console.error e)
-      [:div "Render failed! See console for more info."])))
+      (js/console.error (ex-message e) (some-> e (ex-data) (clj->js)))
+      [:div {:style {:padding "1rem"
+                     :color   "RED"}}
+       "Render failed! See console for more info."])))
 
 (defn toggle-actor!
   [actor-name]
