@@ -61,11 +61,14 @@ jobs:
           cp -v doc/README.html dist/index.html           
           cp -v target/sketch-diagrams/mobile-weather-app/happy-path-test.html dist/mobile-weather-app/happy-path-test.html
 
+      - name: Upload static files as artifact
+        id: deployment
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/
+
       - name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v4
-        with:
-          branch: gh-pages
-          folder: dist
 
       # https://github.com/marketplace/actions/deploy-to-github-pages
 #      - name: Deploy static artifacts to GitHub Pages
