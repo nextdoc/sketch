@@ -39,7 +39,7 @@ jobs:
           echo "tag=${TAG}" >> $GITHUB_ENV
           echo "Tag resolved: ${TAG}"
 
-      - name: Clojure Tests incl examples
+      - name: Clojure Tests including examples
         run: |
           clojure -M:examples:cljs-diagram:test-cli          
 
@@ -71,14 +71,3 @@ jobs:
 
       - name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v4
-
-      # https://github.com/marketplace/actions/deploy-to-github-pages
-#      - name: Deploy static artifacts to GitHub Pages
-#        uses: JamesIves/github-pages-deploy-action@v4
-#        with:
-#          branch: gh-pages
-#          folder: dist
-#          # keep prev tag versions for backwards compatibility
-#          clean: false
-#          clean-exclude: |
-#            0.1.*/**
