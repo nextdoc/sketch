@@ -43,7 +43,7 @@ jobs:
         run: |
           clojure -M:examples:cljs-diagram:test-cli          
 
-      - name: Shadow CLJS Release Build diagram js
+      - name: Shadow CLJS Release Build diagram SPA js
         run: |
           npm install
           clojure -M:cljs-diagram:build release diagram          
@@ -69,7 +69,7 @@ jobs:
           mkdir -p dist/mobile-weather-app
           cp -v target/sketch-diagrams/mobile-weather-app/happy-path-test.html dist/mobile-weather-app/happy-path-test.html
 
-      - name: Deploy static artifacts to GitHub Pages
+      - name: Deploy static artifacts to GitHub Pages/Site
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           branch: gh-pages
