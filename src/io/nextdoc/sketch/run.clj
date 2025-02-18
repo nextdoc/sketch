@@ -267,8 +267,8 @@
      [:div.mermaid.left diagram]
      [:div.divider]
      [:div#app.right]]
-    ; TODO dev dispatch here, using github for hosting release js/map
-    [:script {:src "http://localhost:8000/diagram-js/main.js"}]
+    [:script {:src (if dev? "http://localhost:8000/diagram-js/main.js"
+                            "https://nextdoc.github.io/sketch/0.1.5/main.js")}]
     [:script (format "io.nextdoc.sketch.browser.diagram_app.load(%s, %s);"
                      (-> states
                          (update :diffs #(mapv edit/get-edits %)) ; serializable diffs
@@ -279,7 +279,7 @@
                          (json/write-str)))]]])
 
 (defn write-sequence-diagram!
-  [{:keys [test-ns-str diagram-dir diagram-config system model-parsed states]}]
+  [{:keys [test-ns-str diagram-dir diagram-config system model-parsed states dev?]}]
   (let [test-name (as-> test-ns-str $
                         (str/split $ #"\.")
                         (last $))
@@ -298,7 +298,8 @@
     (spit (str file-name ".html") (-> {:diagram diagram
                                        :title   test-name
                                        :states  states
-                                       :model   model-parsed}
+                                       :model   model-parsed
+                                       :dev?    dev?}
                                       (sequence-diagram-page)
                                       (html)))
     (log/info success-string)))
@@ -350,11 +351,12 @@
   "the entry point to run a sketch test"
   [{:keys [steps model state-store registry state-schemas-ignored middleware
            diagram-dir diagram-name diagram-config verbose?
-           closed-data-flow-schemas? closed-state-schemas?]
+           closed-data-flow-schemas? closed-state-schemas? dev?]
     :or   {diagram-dir               "target/sketch-diagrams"
            verbose?                  false
            closed-data-flow-schemas? false
-           closed-state-schemas?     false}}]
+           closed-state-schemas?     false
+           dev?                      false}}]
   (when verbose? (clojure.pprint/pprint steps))
   (let [model-parsed (or (some-> (io/resource model)
                                  (read-config))
@@ -482,6 +484,7 @@
                               :diagram-config diagram-config
                               :system         system
                               :model-parsed   model-parsed
-                              :states         @state-snapshots})
+                              :states         @state-snapshots
+                              :dev?           dev?})
 
     @system))
