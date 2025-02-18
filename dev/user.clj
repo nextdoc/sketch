@@ -1,8 +1,7 @@
-(ns user
-  (:require [shadow.cljs.devtools.api :as shadow]))
+(ns user)
 
 (comment
-  ; start build water
+  ; start build watcher
   (do
     (require '[shadow.cljs.devtools.server :as server])
     (server/start!)
@@ -15,7 +14,10 @@
 
   ; connect browser repl
   (shadow/repl :diagram)
+
   )
+
+
 
 
 
