@@ -100,24 +100,28 @@
                            (->> diffs
                                 (take (get emits emit-count))
                                 (reduce edit/patch {})))
-          visible-state-stores (->> actors-visible
-                                    (mapv (fn [actor]
-                                            (let [{:keys [store]} (get actors actor)]
-                                              {:actor  actor
-                                               :stores (mapv (fn [store-key]
-                                                               (let [single-store (or (get states-at-step store-key)
-                                                                                      (throw (ex-info "store not found"
-                                                                                                      {:key  store-key
-                                                                                                       :keys (keys states-at-step)})))
-                                                                     data (reduce-kv (fn [acc k v]
-                                                                                       (if (empty? v)
-                                                                                         acc
-                                                                                         (assoc acc k v)))
-                                                                                     {}
-                                                                                     single-store)]
-                                                                 {:store store-key
-                                                                  :data  data}))
-                                                             store)}))))]
+          visible-state-stores (when emit-count
+                                 (->> actors-visible
+                                      (mapv (fn actor-storages [actor]
+                                              (let [{:keys [store]} (get actors actor)]
+                                                {:actor  actor
+                                                 :stores (mapv (fn actor-store [store-key]
+                                                                 (let [single-store (or (get states-at-step store-key)
+                                                                                        (throw (ex-info "store not found"
+                                                                                                        {:key  store-key
+                                                                                                         :keys (keys states-at-step)})))
+                                                                       data (if (= :database (store-types store-key))
+                                                                              ; remove empty records
+                                                                              (reduce-kv (fn [acc k v]
+                                                                                           (if (empty? v)
+                                                                                             acc
+                                                                                             (assoc acc k v)))
+                                                                                         {}
+                                                                                         single-store)
+                                                                              single-store)]
+                                                                   {:store store-key
+                                                                    :data  data}))
+                                                               store)})))))]
       [:div
        ;[render-pre @app-state]
        (for [{:keys [actor stores]} visible-state-stores]
