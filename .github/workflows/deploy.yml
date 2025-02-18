@@ -28,7 +28,7 @@ jobs:
       - name: Install clojure tools
         uses: DeLaGuardo/setup-clojure@11.0
         with:
-          cli: 1.11.4.1474              # Clojure CLI based on tools.deps
+          cli: 1.11.1                   # Clojure CLI based on tools.deps
           bb: v1.12.196                 # Babashka
           #clj-kondo: 2022.05.31        # Clj-kondo
 
