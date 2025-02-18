@@ -268,7 +268,7 @@
      [:div.divider]
      [:div#app.right]]
     [:script {:src (if dev? "http://localhost:8000/diagram-js/main.js"
-                            "https://nextdoc.github.io/sketch/0.1.5/main.js")}]
+                            "https://nextdoc.github.io/sketch/0.1.7/main.js")}]
     [:script (format "io.nextdoc.sketch.browser.diagram_app.load(%s, %s);"
                      (-> states
                          (update :diffs #(mapv edit/get-edits %)) ; serializable diffs
