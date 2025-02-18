@@ -1,4 +1,4 @@
-name: Deploy to GitHub Pages (Versioned)
+name: Deploy Diagram Artifact at Github release
 
 on:
   push:
@@ -57,5 +57,5 @@ jobs:
             ~/.deps.clj
             ~/node_modules
           # List all files containing dependencies
-          key: cljdeps-${{ hashFiles('deps.edn', 'package.json', 'bb.edn') }}
-          restore-keys: cljdeps-
+          key: cljdeps-release${{ hashFiles('deps.edn', 'package.json', 'bb.edn') }}
+          restore-keys: cljdeps-release
