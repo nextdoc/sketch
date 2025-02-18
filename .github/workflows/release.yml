@@ -2,8 +2,6 @@ name: Deploy Diagram Artifact at Github release
 
 on:
   push:
-    branches:
-      - main
     tags:
       - '*'  # Runs when a tag is pushed
 
@@ -57,5 +55,5 @@ jobs:
             ~/.deps.clj
             ~/node_modules
           # List all files containing dependencies
-          key: cljdeps-release${{ hashFiles('deps.edn', 'package.json', 'bb.edn') }}
-          restore-keys: cljdeps-release
+          key: cljdeps-release-${{ hashFiles('deps.edn', 'package.json', 'bb.edn') }}
+          restore-keys: cljdeps-release-
