@@ -1,9 +1,29 @@
-# Network Modelling
+# Sketch: Network Modelling
 
 Clojure software architects often say that we add schemas "at the boundaries"
 
 Sketch allows you to model and test the entire system with those boundaries, before building and deploying any
 components.
+
+https://github.com/nextdoc/sketch
+
+## Demo
+
+This test...
+https://github.com/nextdoc/sketch/blob/main/examples/mobile_weather_app/happy_path_test.clj
+generates this static html file when run...
+https://nextdoc.github.io/sketch/mobile-weather-app/happy-path-test.html
+
+The actors and the step labels are clickable and this will display the state stored by each actor at any step in the
+test.
+This makes it a very effective storytelling tool.
+
+You can clone this repo and run it yourself locally if you want to play with it.
+If you do clone it, you can try the following:
+
+- Change one of the emitted messages and see that data-flow is validated by the test
+- Change some of the data that is persisted to storage and see that state is validated by the test
+- Comment out some of the test steps and see the diagram change when the test is run
 
 ## Why
 
@@ -80,6 +100,11 @@ components.
 - communicate with diagrams before initial build
 - avoid naming standard drift
 - generate non-clojure code if required
+
+## Status
+
+- Early alpha: likely to change but we'll endeavour to keep the test API stable
+-
 
 ## Influences
 
