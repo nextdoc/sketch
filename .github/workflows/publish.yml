@@ -5,6 +5,11 @@ on:
     branches:
       - main
 
+concurrency:
+  # Avoid slow clojure step by serializing workflows.
+  group: clojure-setup-group
+  cancel-in-progress: false
+
 permissions:
   contents: read
   pages: write
