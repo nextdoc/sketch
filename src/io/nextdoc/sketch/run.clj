@@ -262,7 +262,8 @@
     [:style (slurp (io/resource "io/nextdoc/sketch/browser/host-page.css"))]]
 
    [:body {:style "background-color:#BEC7FC;"}
-    ; TODO title w/ consistent top margin
+    [:div.title
+     [:h3 title]]
     [:div.container
      [:div.mermaid.left diagram]
      [:div.divider]

@@ -86,7 +86,8 @@
   (->> {:steps          test-steps
         :diagram-name   (str (sketch-run/this-ns))
         :diagram-config {;:actor-order []
-                         }}
+                         }
+        :dev?           true}
        (with-config)
        (sketch-run/run-steps!)
        (log/with-merged-config (sketch-run/log-config (sketch-run/this-ns)))))
