@@ -1,27 +1,34 @@
-{:locations       {:iphone {:id     :iphone
-                            :name   "Mobile Device"
-                            :state  {:core-data {:id       :core-data
+{:locations       {:iphone       {:id     :iphone
+                                  :name   "Mobile Device"
+                                  :state  {:core-data {:id       :core-data
+                                                       :type     :database
+                                                       :name     "Core Data Services"
+                                                       :entities #{:user :city}}}
+                                  :actors {:weather-app {:id    :weather-app
+                                                         :name  "weather app installed from App Store"
+                                                         :ports {:http-client {:id   :http-client
+                                                                               :name "Swift HTTP client"}}}}}
+                   :aws          {:id     :aws
+                                  :name   "Amazon Web Services"
+                                  :state  {:env {:id       :env
+                                                 :name     "Lambda environment variables"
+                                                 :type     :associative
+                                                 :entities #{:env}}
+                                           :ddb {:id       :ddb
+                                                 :name     "Dynamodb"
                                                  :type     :database
-                                                 :name     "Core Data Services"
-                                                 :entities #{:user :city}}}
-                            :actors {:weather-app {:id    :weather-app
-                                                   :name  "weather app installed from App Store"
-                                                   :ports {:http-client {:id   :http-client
-                                                                         :name "Swift HTTP client"}}}}}
-                   :aws    {:id     :aws
-                            :name   "Amazon Web Services"
-                            :state  {:env {:id       :env
-                                           :name     "Lambda environment variables"
-                                           :type     :associative
-                                           :entities #{:env}}
-                                     :ddb {:id       :ddb
-                                           :name     "Dynamodb"
-                                           :type     :database
-                                           :entities #{:city :user}}}
-                            :actors {:lambda {:id    :lambda
-                                              :name  "Lambda Rest APIs serving http requests/responses"
-                                              :ports {:handler {:id   :handler
-                                                                :name "JVM handlers via API Gateway"}}}}}}
+                                                 :entities #{:city :user}}}
+                                  :actors {:lambda {:id    :lambda
+                                                    :name  "Lambda Rest APIs serving http requests/responses"
+                                                    :ports {:handler {:id   :handler
+                                                                      :name "JVM handlers via API Gateway"}}}}}
+                   :open-weather {:id     :open-weather
+                                  :name   "Open Weather Map"
+                                  :state  {}
+                                  :actors {:api {:id    :api
+                                                 :name  "One Call API v3.0"
+                                                 :ports {:one-call3 {:id   :one-call3
+                                                                     :name "One Call Server"}}}}}}
  :domain-entities {:env  {:id   :env
                           :name "Environment variables"}
                    :user {:id   :user
@@ -33,16 +40,23 @@
                     :from        #ref [:locations :iphone :actors :weather-app :ports :http-client]
                     :to          #ref [:locations :aws :actors :lambda :ports :handler]
                     :request     :user-info}
+                   {:description "App loads weather for its location"
+                    :from        #ref [:locations :iphone :actors :weather-app :ports :http-client]
+                    :to          #ref [:locations :aws :actors :lambda :ports :handler]
+                    :request     :weather-info}
+                   {:description "App loads weather for its location"
+                    :from        #ref [:locations :aws :actors :lambda :ports :handler]
+                    :to          #ref [:locations :open-weather :actors :api :ports :one-call3]
+                    :request     :one-call}
 
                    ; uncomment to play with model watcher
                    #_{:description "App requests user data is deleted"
-                    :from        #ref [:locations :iphone :actors :weather-app :ports :http-client]
-                    :to          #ref [:locations :aws :actors :lambda :ports :handler]
-                    :request     :delete-me}
+                      :from        #ref [:locations :iphone :actors :weather-app :ports :http-client]
+                      :to          #ref [:locations :aws :actors :lambda :ports :handler]
+                      :request     :delete-me}
 
                    ; push events
                    {:description "Server notifies app that weather in currently visible city changed"
                     :from        #ref [:locations :aws :actors :lambda :ports :handler]
                     :to          #ref [:locations :iphone :actors :weather-app :ports :http-client]
-                    :event       :forecast-change}
-                   ]}
+                    :event       :weather-change}]}
