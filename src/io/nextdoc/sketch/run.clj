@@ -246,7 +246,7 @@
       (log/warn "  use nextdoc.fbp.stream3-sketch"))))
 
 (defn sequence-diagram-page
-  [{:keys [diagram title model states dev?]}]
+  [{:keys [diagram title model states tag dev?]}]
   [:html {:lang "en"}
    [:head
     [:meta {:charset "UTF-8"}]
@@ -268,7 +268,7 @@
      [:div.divider]
      [:div#app.right]]
     [:script {:src (if dev? "http://localhost:8000/diagram-js/main.js"
-                            "https://nextdoc.github.io/sketch/0.1.8/main.js")}]
+                            (format "https://cdn.jsdelivr.net/gh/nextdoc/sketch@%s/main.js" tag))}]
     [:script (format "io.nextdoc.sketch.browser.diagram_app.load(%s, %s);"
                      (-> states
                          (update :diffs #(mapv edit/get-edits %)) ; serializable diffs
@@ -299,7 +299,8 @@
                                        :title   test-name
                                        :states  states
                                        :model   model-parsed
-                                       :dev?    dev?}
+                                       :dev?    dev?
+                                       :tag     "r0.1.15"}
                                       (sequence-diagram-page)
                                       (html)))
     (log/info success-string)))
