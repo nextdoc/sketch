@@ -2,7 +2,6 @@
   (:require [cljs.reader :as reader]
             [com.rpl.specter :refer [ALL MAP-KEYS MAP-VALS collect collect-one multi-path select select-first transform]]
             [editscript.core :as edit]
-            [sc.api]
             [goog.string :as gstring]
             [goog.string.format]
             [reagent.core :as r]
@@ -101,27 +100,26 @@
                            (->> diffs
                                 (take (get emits emit-count))
                                 (reduce edit/patch {})))
-          visible-state-stores (when emit-count
-                                 (mapv (fn actor-storages [actor]
-                                         (let [stores-in-actor (:store (get actors actor))]
-                                           {:actor  actor
-                                            :stores (->> stores-in-actor
-                                                         (mapv (fn actor-store [store-key]
-                                                                 (let [single-store (get states-at-step store-key)
-                                                                       data (if single-store
-                                                                              (if (= :database (store-types store-key))
-                                                                                ; remove empty records
-                                                                                (reduce-kv (fn [acc k v]
-                                                                                             (if (empty? v)
-                                                                                               acc
-                                                                                               (assoc acc k v)))
-                                                                                           {}
-                                                                                           single-store)
-                                                                                single-store)
-                                                                              {})]
-                                                                   {:store store-key
-                                                                    :data  data}))))}))
-                                       actors-visible))]
+          visible-state-stores (mapv (fn actor-storages [actor]
+                                       (let [stores-in-actor (:store (get actors actor))]
+                                         {:actor  actor
+                                          :stores (->> stores-in-actor
+                                                       (mapv (fn actor-store [store-key]
+                                                               (let [single-store (get states-at-step store-key)
+                                                                     data (if single-store
+                                                                            (if (= :database (store-types store-key))
+                                                                              ; remove empty records
+                                                                              (reduce-kv (fn [acc k v]
+                                                                                           (if (empty? v)
+                                                                                             acc
+                                                                                             (assoc acc k v)))
+                                                                                         {}
+                                                                                         single-store)
+                                                                              single-store)
+                                                                            {})]
+                                                                 {:store store-key
+                                                                  :data  data}))))}))
+                                     actors-visible)]
       [:div
        ;[render-pre @app-state]
        (for [{:keys [actor stores]} visible-state-stores]
