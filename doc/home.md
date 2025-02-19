@@ -107,4 +107,6 @@ If you do, try this:
 - Diagram app is a POC, needs [cleanup](https://github.com/nextdoc/sketch/issues/6)
 - Very few tests
 - Sparse documentation
-- Limited bandwidth to work on it until [Nextdoc.io](https://nextdoc.io/) grows
+- Limited time to work on it until [Nextdoc.io](https://nextdoc.io/) has more bandwidth
+
+Please be patient. We know there is work to be done.
