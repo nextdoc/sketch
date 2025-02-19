@@ -18,10 +18,10 @@
 (defn app-user-info-request []
   {:actor   :iphone/weather-app
    :action  "user enters username into mobile app"
-   :before (fn [{:keys [state ]}]
-             (let [initial-data (sketch-run/as-map (:core-data state))]
-               (is (every? empty? (vals initial-data))
-                   "no data when app starts")))
+   :before  (fn [{:keys [state]}]
+              (let [initial-data (sketch-run/as-map (:core-data state))]
+                (is (every? empty? (vals initial-data))
+                    "no data when app starts")))
    :handler (fn [{:keys [state fixtures]}]
               (let [new-user {:user-name (:user-name fixtures)}]
                 ; write to local storage
