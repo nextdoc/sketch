@@ -16,20 +16,31 @@
 
 (defprotocol StateDatabase
   "operations that a typical database can perform"
-  (create-table [this entity-type])
-  (get-record [this entity-type id])
-  (query [this entity-type predicate])
-  (put-record! [this entity-type id value])
-  (delete-record! [this entity-type id])
-  (clear! [this])
-  (as-map [this]))
+  (create-table [this entity-type]
+    "Creates a new table for the given entity type if it doesn't exist")
+  (get-record [this entity-type id]
+    "Retrieves a record by its ID from the specified entity type table")
+  (query [this entity-type predicate]
+    "Returns all records from entity type table that match the predicate")
+  (put-record! [this entity-type id value]
+    "Stores a record with the given ID in the entity type table")
+  (delete-record! [this entity-type id]
+    "Removes the record with the given ID from the entity type table")
+  (clear! [this]
+    "Removes all records from all tables")
+  (as-map [this]
+    "Returns the entire database state as a nested map"))
 
 (defprotocol StateAssociative
   "operations that a typical lookup data-structure can perform"
-  (get-value [this id])
-  (put-value! [this id value])
-  (delete-value! [this id])
-  (as-lookup [this]))
+  (get-value [this id]
+    "Retrieves a value by its ID from the lookup store")
+  (put-value! [this id value]
+    "Stores a value with the given ID in the lookup store")
+  (delete-value! [this id]
+    "Removes the value with the given ID from the lookup store")
+  (as-lookup [this]
+    "Returns the entire lookup store state as a map"))
 
 (defn atom-state-store
   []
@@ -53,8 +64,8 @@
         (get-in @database [entity-type id]))
       (query [_ entity-type predicate]
         (->> (get @database entity-type)
-             (vals)
-             (filterv predicate)))
+             (filterv (fn [[_ v]] (predicate v)))
+             (mapv (fn [[k v]] (assoc v :id k)))))
       (put-record! [_ entity-type id record]
         (swap! database assoc-in [entity-type id] record))
       (delete-record! [_ entity-type id]
@@ -301,7 +312,7 @@
                                        :states  states
                                        :model   model-parsed
                                        :dev?    dev?
-                                       :tag     "r0.1.18"}
+                                       :tag     "r0.1.19"}
                                       (sequence-diagram-page)
                                       (html)))
     (log/info success-string)))
