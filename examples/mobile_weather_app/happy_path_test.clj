@@ -18,6 +18,10 @@
 (defn app-user-info-request []
   {:actor   :iphone/weather-app
    :action  "user enters username into mobile app"
+   :before (fn [{:keys [state ]}]
+             (let [initial-data (sketch-run/as-map (:core-data state))]
+               (is (every? empty? (vals initial-data))
+                   "no data when app starts")))
    :handler (fn [{:keys [state fixtures]}]
               (let [new-user {:user-name (:user-name fixtures)}]
                 ; write to local storage
@@ -79,11 +83,10 @@
                       (concat ['reset-system!] app-start-steps)))
 
 (deftest happy-path
-  (is (->> {:steps          test-steps
-            :diagram-name   (str (sketch-run/this-ns))
-            :diagram-config {;:actor-order []
-                             }}
-           (with-config)
-           (sketch-run/run-steps!) ; TODO returns success boolean in results
-           (log/with-merged-config (sketch-run/log-config (sketch-run/this-ns)))
-           )))
+  (->> {:steps          test-steps
+        :diagram-name   (str (sketch-run/this-ns))
+        :diagram-config {;:actor-order []
+                         }}
+       (with-config)
+       (sketch-run/run-steps!)
+       (log/with-merged-config (sketch-run/log-config (sketch-run/this-ns)))))
