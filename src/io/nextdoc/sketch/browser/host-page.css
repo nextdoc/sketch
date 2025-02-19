@@ -48,3 +48,7 @@ body {
 .divider:hover {
     background: #555;
 }
+
+svg text.actor, svg text.messageText {
+    cursor : pointer;
+}
