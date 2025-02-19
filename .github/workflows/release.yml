@@ -61,12 +61,16 @@ jobs:
           cp -v public/diagram-js/main.js app/main.js
           cp -v public/diagram-js/main.js.map app/main.js.map
 
-      - name: Commit generated JS file to artifacts branch
+      - name: Create and push branch from tag
         run: |
-          git fetch origin artifacts || git checkout --orphan artifacts
-          git checkout artifacts
+          TAG_NAME=${{ github.ref_name }}
+          git fetch origin || echo "No existing remote branches found"          
+          # Create a new branch from the tag
+          git checkout -b $TAG_NAME
           git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"        
+          # Add and commit the generated files
           git add app/main.js app/main.js.map
-          git commit -m "Add generated artifacts for ${{ github.ref_name }}" || echo "No changes to commit"
-          git push origin HEAD:artifacts
+          git commit -m "Add generated artifacts for tag $TAG_NAME"          
+          # Push the new branch
+          git push origin $TAG_NAME
