@@ -100,13 +100,13 @@
   {:actor   :aws/lambda
    :action  "AWS Lambda forwards weather data to mobile app"
    :handler (fn [{:keys [messages]}]
-              (let [weather-data (-> messages last :message :payload)]
+              (let [{:keys [timezone current]} (-> messages last :message :payload)]
                 {:emit [{:to        :iphone/weather-app
                          :request   :weather-info
                          :direction :response
-                         :payload   {:name       (:timezone weather-data)
-                                     :temp       (-> weather-data :current :temp)
-                                     :feels-like (-> weather-data :current :feels-like)}}]}))})
+                         :payload   {:name       timezone
+                                     :temp       (:temp current)
+                                     :feels-like (:feels-like current)}}]}))})
 
 (defn app-weather-response []
   {:actor   :iphone/weather-app
@@ -148,13 +148,13 @@
   {:actor   :aws/lambda
    :action  "AWS Lambda pushes weather alert to mobile app"
    :handler (fn [{:keys [messages]}]
-              (let [weather-data (-> messages last :message :payload)]
+              (let [{:keys [timezone current alerts]} (-> messages last :message :payload)]
                 {:emit [{:to      :iphone/weather-app
                          :event   :weather-change
-                         :payload {:name       (:timezone weather-data)
-                                   :temp       (-> weather-data :current :temp)
-                                   :feels-like (-> weather-data :current :feels-like)
-                                   :alerts     (mapv :event (:alerts weather-data))}}]}))})
+                         :payload {:name       timezone
+                                   :temp       (:temp current)
+                                   :feels-like (:feels-like current)
+                                   :alerts     (mapv :event alerts)}}]}))})
 
 (defn app-weather-change []
   {:actor   :iphone/weather-app
