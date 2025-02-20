@@ -23,9 +23,11 @@
                 (is (every? empty? (vals initial-data))
                     "no data when app starts")))
    :handler (fn [{:keys [state fixtures]}]
-              (let [new-user {:user-name (:user-name fixtures)}]
+              (let [id (random-uuid)
+                    new-user {:id id
+                              :user-name (:user-name fixtures)}]
                 ; write to local storage
-                (sketch-run/put-record! (:core-data state) :users (random-uuid) new-user)
+                (sketch-run/put-record! (:core-data state) :users id new-user)
                 ; send request to api
                 {:emit [{:to      :aws/lambda
                          :request :user-info
@@ -45,8 +47,11 @@
    :handler (fn [{:keys [state messages]}]
               (let [user-name (-> messages last :message :payload :user-name)
                     matches (sketch-run/query (:ddb state) :user (comp #{user-name} :user-name))
-                    user (domain/user-with-status user-name matches)]
-                (sketch-run/put-record! (:ddb state) :users (random-uuid) user)
+                    id (random-uuid)
+                    user (-> user-name
+                             (domain/user-with-status matches)
+                             (assoc :id id))]
+                (sketch-run/put-record! (:ddb state) :users id user)
                 {:emit [{:to        :aws/lambda
                          :request   :user-info
                          :direction :response
@@ -108,7 +113,7 @@
    :action  "Mobile app stores weather data in Core Data"
    :handler (fn [{:keys [state messages]}]
               (let [weather-data (-> messages last :message :payload)]
-                (sketch-run/put-record! (:core-data state) :cities (random-uuid) weather-data)
+                (sketch-run/put-record! (:core-data state) :citys (random-uuid) weather-data)
                 {:emit []}))})
 
 (defn lambda-poll-weather []
@@ -156,10 +161,10 @@
    :action  "Mobile app updates weather data with alerts in Core Data"
    :handler (fn [{:keys [state messages]}]
               (let [weather-data (-> messages last :message :payload)
-                    cities (sketch-run/query (:core-data state) :cities #(= (:name %) (:name weather-data)))
+                    cities (sketch-run/query (:core-data state) :citys #(= (:name %) (:name weather-data)))
                     city (first cities)]
                 (when city
-                  (sketch-run/put-record! (:core-data state) :cities (:id city) weather-data))
+                  (sketch-run/put-record! (:core-data state) :citys (:id city) weather-data))
                 {:emit []}))})
 
 ;;;; TEST UTILS ;;;;

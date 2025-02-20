@@ -30,7 +30,7 @@
                                         [:users [:map-of :uuid :weather/user]]
                                         [:citys [:map-of :uuid :weather/city]]]
    :iphone-weather-app/error           [:map]
-   :iphone-weather-app/weather-change  [:map]
+   :iphone-weather-app/weather-change  :weather/city
    :open-weather/api                   [:map]
    :open-weather-api/error             [:map]
    :open-weather-api/one-call          [:map]
@@ -39,6 +39,7 @@
 
 (def domain-schema
   {:weather/user [:map
+                  [:id :uuid]
                   [:user-name :string]
                   [:status {:optional true} [:enum :active :blocked]]
                   [:latitude {:optional true} :float]
@@ -77,7 +78,6 @@
                                     [:uvi :double]
                                     [:clouds :int]
                                     [:visibility :int]
-                                    [:ref {:optional true} :open-weather/wind-data]
                                     [:weather [:vector :open-weather/weather-condition]]
                                     [:rain {:optional true} :open-weather/precipitation]
                                     [:snow {:optional true} :open-weather/precipitation]]
@@ -116,6 +116,7 @@
                                     [:timezone-offset :int]
                                     [:current [:merge
                                                :open-weather/base-weather
+                                               :open-weather/wind-data
                                                [:map
                                                 [:sunrise :int]
                                                 [:sunset :int]]]]
@@ -126,6 +127,7 @@
                                     [:hourly {:optional true}
                                      [:vector [:merge
                                                :open-weather/base-weather
+                                               :open-weather/wind-data
                                                [:map
                                                 [:pop :double]]]]]
                                     [:daily {:optional true}
@@ -142,7 +144,6 @@
                                                [:pressure :int]
                                                [:humidity :int]
                                                [:dew-point :double]
-                                               [:ref :open-weather/wind-data]
                                                [:weather [:vector :open-weather/weather-condition]]
                                                [:clouds :int]
                                                [:pop :double]
