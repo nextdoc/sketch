@@ -9,8 +9,8 @@
             [taoensso.timbre :as log]))
 
 (comment
-  (sketch-watcher/start! {:model-path    "mobile_weather_app/weather-model.edn"
-                          :registry-path "examples/mobile_weather_app/weather_registry.cljc"})
+  (sketch-watcher/start! {:model-path    "billing-sketch-meta.edn"
+                          :registry-path "src/cursive/actor_model.cljc"})
   (sketch-watcher/stop!))
 
 (md/start! {:reporter (pretty/thrower)})
@@ -221,11 +221,12 @@
                       (concat ['reset-system!] app-start-chapter)))
 
 (deftest happy-path
-  (->> {:steps          test-steps
-        :diagram-name   (str (sketch-run/this-ns))
-        :diagram-config {;:actor-order []
-                         }
-        :dev?           false}
+  (->> {:steps                     test-steps
+        :diagram-name              (str (sketch-run/this-ns))
+        :diagram-config            {#_#_:actor-order []}
+        :closed-data-flow-schemas? true
+        :closed-state-schemas?     true
+        :dev?                      false}
        (with-config)
        (sketch-run/run-steps!)
        (log/with-merged-config (sketch-run/log-config (sketch-run/this-ns)))))

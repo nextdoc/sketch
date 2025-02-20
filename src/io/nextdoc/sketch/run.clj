@@ -197,7 +197,7 @@
                       (:event message) (name (:event message)) ; no suffix for events
                       :else (throw (ex-info "unhandled message type" message)))
         schema-keyword (keyword schema-namespace schema-name)
-        schema (cond-> (m/schema schema-keyword {:registry registry})
+        schema (cond-> (m/deref-recursive (m/schema schema-keyword {:registry registry}))
                        closed-data-flow-schemas? (mu/closed-schema))]
     (try
       (when-let [ex (m/explain schema (:payload message))]
@@ -227,7 +227,7 @@
               schema-keyword (keyword schema-namespace schema-name)]
           (when-not (contains? state-schemas-ignored schema-keyword)
             (try
-              (let [schema (cond-> (m/schema schema-keyword {:registry registry})
+              (let [schema (cond-> (m/deref-recursive (m/schema schema-keyword {:registry registry}))
                                    closed-state-schemas? (mu/closed-schema))
                     state (case (select-first [:locations (:id from-location) :state k :type] model-parsed)
                             :associative (as-lookup store)

@@ -7,8 +7,10 @@
    :aws-ddb/city                       [:map]
    :aws-ddb/user                       [:map]
    :aws-env/env                        [:map]
-   :aws-lambda/ddb                     [:map]
-   :aws-lambda/env                     [:map]
+   :aws-lambda/ddb                     [:map
+                                        [:users [:map-of :uuid :weather/user]]
+                                        [:citys [:map-of :uuid :weather/city]]]
+   :aws-lambda/env                     [:map-of :string :string]
    :aws-lambda/error                   [:map]
    :aws-lambda/user-info               [:map]
    :aws-lambda/user-info-request       [:map
@@ -17,12 +19,16 @@
    :aws-lambda/user-info-response      :weather/user
    :aws-lambda/weather-info            [:map]
    :aws-lambda/weather-info-request    [:map
-                                        [:user-name :string]]
+                                        [:user-name :string]
+                                        [:latitude :float]
+                                        [:longitude :float]]
    :aws-lambda/weather-info-response   :weather/city
    :iphone/weather-app                 [:map]
    :iphone-core-data/city              :weather/city
    :iphone-core-data/user              [:map]
-   :iphone-weather-app/core-data       [:map]
+   :iphone-weather-app/core-data       [:map
+                                        [:users [:map-of :uuid :weather/user]]
+                                        [:citys [:map-of :uuid :weather/city]]]
    :iphone-weather-app/error           [:map]
    :iphone-weather-app/weather-change  [:map]
    :open-weather/api                   [:map]
@@ -34,7 +40,9 @@
 (def domain-schema
   {:weather/user [:map
                   [:user-name :string]
-                  [:status [:enum :active :blocked]]]
+                  [:status {:optional true} [:enum :active :blocked]]
+                  [:latitude {:optional true} :float]
+                  [:longitude {:optional true} :float]]
    :weather/city [:map
                   [:name :string]
                   [:temp :double]
