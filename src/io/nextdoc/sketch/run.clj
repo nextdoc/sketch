@@ -21,7 +21,7 @@
   (get-record [this entity-type id]
     "Retrieves a record by its ID from the specified entity type table")
   (query [this entity-type predicate]
-    "Returns all records from entity type table that match the predicate")
+    "Returns all records from entity type table that match the predicate. Records returned include :id.")
   (put-record! [this entity-type id value]
     "Stores a record with the given ID in the entity type table")
   (delete-record! [this entity-type id]
@@ -375,7 +375,7 @@
                                  (read-config))
                          (throw (ex-info "model not found" {:source model})))
         system (atom empty-system)
-        run-step! (fn [step]
+        run-step! (fn run-step! [step]
                     (let [step-result (step)                ; invoke step thunk to access it's config
                           {:keys     [reset action before handler after]
                            actor-key :actor} step-result]
@@ -474,17 +474,40 @@
               message-count-after (message-count)
               messages-emitted (- message-count-after message-count-before)]
           (when (pos-int? messages-emitted)
-            (let [{:keys [diffs]} @state-snapshots
+            (let [{:keys [diffs diffs-for-message]} @state-snapshots
+                  diffs-to-restore-before-step (count diffs) ; current diff not added yet
+                  max-msg-index (->> diffs-for-message
+                                     (keys)
+                                     (reduce max 0))
+                  new-msg-entries (if (zero? (count diffs-for-message))
+                                    {0 diffs-to-restore-before-step}
+                                    (reduce (fn [acc i]
+                                              (assoc acc i diffs-to-restore-before-step))
+                                            {}
+                                            (range (inc max-msg-index) (inc message-count-before))))
+                  ; all new emitted messages from the step will apply this number of diffs
+                  ; FIXME should be all diffs up to next message, not only diffs up to this message
+                  ; i.e. want to see data from all steps incl/after this step until next message emitted
+                  ;  or all steps if message is last emitted
+                  ; this makes the UI more intuitive i.e. any message click will show all state changes after message received
+                  ; TODO impl
+                  ;  need to know:
+                  ;   for any emitted message index, how many diffs to apply up to next message
+                  ;   i.e. for each message before index not already present, add diff count
+                  ;  ? after loop, derive :diffs
+                  ; TODO unit test this calculation
                   diffs-needed (inc (count diffs))
+                  ; add diffs lookup for message -> diff count to apply if the message is clicked
                   message-diffs (reduce (fn [acc message-index]
                                           (assoc acc message-index diffs-needed))
                                         {}
                                         (range message-count-before message-count-after))]
+              (swap! state-snapshots update :diffs-for-message merge new-msg-entries)
               (swap! state-snapshots update :emits merge message-diffs)))
+          ; TODO delete :emits
           (swap! state-snapshots update :diffs conj (edit/diff (:latest @state-snapshots) state-after))
           (swap! state-snapshots assoc :latest state-after))))
 
-    ;(clojure.pprint/pprint (:emits @state-snapshots))
     ; TODO cljc hydration fn, shared with reagent app, invariant asserted in CI for all tests
     (comment (reduce edit/patch {} (:diffs @state-snapshots)))
 

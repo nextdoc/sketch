@@ -23,11 +23,11 @@
                 (is (every? empty? (vals initial-data))
                     "no data when app starts")))
    :handler (fn [{:keys [state fixtures]}]
-              (let [id (random-uuid)
-                    new-user {:id id
+              (let [temp-id (random-uuid)
+                    new-user {:id temp-id
                               :user-name (:user-name fixtures)}]
                 ; write to local storage
-                (sketch-run/put-record! (:core-data state) :users id new-user)
+                (sketch-run/put-record! (:core-data state) :users temp-id new-user)
                 ; send request to api
                 {:emit [{:to      :aws/lambda
                          :request :user-info
@@ -52,19 +52,25 @@
                              (domain/user-with-status matches)
                              (assoc :id id))]
                 (sketch-run/put-record! (:ddb state) :users id user)
-                {:emit [{:to        :aws/lambda
+                {:emit [{:to        :iphone/weather-app
                          :request   :user-info
                          :direction :response
                          :payload   user}]}))})
 
-(defn app-weather-request []
+(defn app-handle-user-response []
   {:actor   :iphone/weather-app
-   :action  "app uses CLocationManager to get lat/long and requests weather"
-   :handler (fn [{:keys [state fixtures]}]
-              (let [{:keys [user-name]} (first (sketch-run/query (:core-data state) :users (constantly true)))]
+   :action  "app updates user, uses CLocationManager to get lat/long and requests weather"
+   :handler (fn [{:keys [state fixtures messages]}]
+              (let [temp-user (first (sketch-run/query (:core-data state) :users (constantly true)))
+                    api-user (-> messages last :message :payload)]
+                ; remove temp user
+                (sketch-run/delete-record! (:core-data state) :users (:id temp-user) )
+                ; write server user with status to storage
+                (sketch-run/put-record! (:core-data state) :users (:id api-user) api-user)
+                ; request weather
                 {:emit [{:to      :aws/lambda
                          :request :weather-info
-                         :payload {:user-name user-name
+                         :payload {:user-name (:user-name api-user)
                                    :latitude  (:lat fixtures)
                                    :longitude (:long fixtures)}}]}))})
 
@@ -210,16 +216,17 @@
 
 (def app-start-chapter '[app-user-info-request
                          lambda-cold-start
-                         api-user-info-response
-                         app-weather-request
-                         lambda-weather-start
-                         api-weather-response
-                         lambda-weather-response
-                         app-weather-response
-                         lambda-poll-weather
-                         api-weather-alert-response
-                         lambda-push-weather-alert
-                         app-weather-change])
+                          api-user-info-response
+                         app-handle-user-response
+                         ;lambda-weather-start
+                         ;api-weather-response
+                         ;lambda-weather-response
+                         ;app-weather-response
+                         ;lambda-poll-weather
+                         ;api-weather-alert-response
+                         ;lambda-push-weather-alert
+                         ;app-weather-change
+                         ])
 
 ; step thunks with indirection so exceptions can provide location
 (def test-steps (mapv #(ns-resolve *ns* %)
