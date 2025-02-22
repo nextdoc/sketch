@@ -4,7 +4,7 @@
             [clojure.java.io :as io]
             [clojure.pprint :as pprint]
             [clojure.string :as str]
-            [com.rpl.specter :refer [ALL MAP-VALS collect-one multi-path select select-first]]
+            [com.rpl.specter :refer [ALL MAP-VALS collect-one multi-path select select-first srange]]
             [editscript.core :as edit]
             [hiccup.core :refer [html]]
             [io.nextdoc.sketch.diagrams :refer [flow-sequence]]
@@ -268,20 +268,17 @@
     [:script {:src "https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"}]
     [:script {:src "https://cdn.jsdelivr.net/npm/d3-graphviz/build/d3-graphviz.min.js"}]
 
-    [:script "mermaid.initialize({ startOnLoad: true, securityLevel: 'loose' });"]
+    [:script "mermaid.initialize({ startOnLoad: false, securityLevel: 'loose' });"]
 
     [:style (slurp (io/resource "io/nextdoc/sketch/browser/host-page.css"))]]
 
    [:body {:style "background-color:#BEC7FC;"}
-    [:div.title
-     [:h3 title]]
-    [:div.container
-     [:div.mermaid.left diagram]
-     [:div.divider]
-     [:div#app.right]]
+    [:div#app]
     [:script {:src (if dev? "http://localhost:8000/diagram-js/main.js"
                             (format "https://cdn.jsdelivr.net/gh/nextdoc/sketch@%s/app/main.js" tag))}]
-    [:script (format "io.nextdoc.sketch.browser.diagram_app.load(%s, %s);"
+    [:script (format "io.nextdoc.sketch.browser.diagram_app.load('%s', %s, %s, %s);"
+                     title
+                     (json/write-str diagram)
                      (-> states
                          (update :diffs #(mapv edit/get-edits %)) ; serializable diffs
                          (pr-str)
@@ -456,8 +453,10 @@
                                      (select [:locations MAP-VALS :state MAP-VALS])
                                      (map (juxt :id :type))
                                      (into {}))
-        state-snapshots (atom {:diffs []
-                               :emits {}})
+        state-snapshots (atom {:latest          {}
+                               :diffs           []
+                               :message-diffs   []
+                               :message-targets []})
         state-edn (fn [] (->> (:state-stores @system)
                               (reduce-kv (fn [acc k v]
                                            (assoc acc k
@@ -467,46 +466,30 @@
                                          {})))]
 
     (doseq [step steps]
-      (let [message-count #(count (get-in @system [:messages :all]))
-            message-count-before (message-count)]
+      (let [all-messages #(get-in @system [:messages :all])
+            message-count-before (count (all-messages))]
         (run-step! step)
         (let [state-after (state-edn)
-              message-count-after (message-count)
+              messages-after (all-messages)
+              message-count-after (count messages-after)
               messages-emitted (- message-count-after message-count-before)]
           (when (pos-int? messages-emitted)
-            (let [{:keys [diffs diffs-for-message]} @state-snapshots
-                  diffs-to-restore-before-step (count diffs) ; current diff not added yet
-                  max-msg-index (->> diffs-for-message
-                                     (keys)
-                                     (reduce max 0))
-                  new-msg-entries (if (zero? (count diffs-for-message))
-                                    {0 diffs-to-restore-before-step}
-                                    (reduce (fn [acc i]
-                                              (assoc acc i diffs-to-restore-before-step))
-                                            {}
-                                            (range (inc max-msg-index) (inc message-count-before))))
-                  ; all new emitted messages from the step will apply this number of diffs
-                  ; FIXME should be all diffs up to next message, not only diffs up to this message
-                  ; i.e. want to see data from all steps incl/after this step until next message emitted
-                  ;  or all steps if message is last emitted
-                  ; this makes the UI more intuitive i.e. any message click will show all state changes after message received
-                  ; TODO impl
-                  ;  need to know:
-                  ;   for any emitted message index, how many diffs to apply up to next message
-                  ;   i.e. for each message before index not already present, add diff count
-                  ;  ? after loop, derive :diffs
-                  ; TODO unit test this calculation
-                  diffs-needed (inc (count diffs))
-                  ; add diffs lookup for message -> diff count to apply if the message is clicked
-                  message-diffs (reduce (fn [acc message-index]
-                                          (assoc acc message-index diffs-needed))
-                                        {}
-                                        (range message-count-before message-count-after))]
-              (swap! state-snapshots update :diffs-for-message merge new-msg-entries)
-              (swap! state-snapshots update :emits merge message-diffs)))
-          ; TODO delete :emits
-          (swap! state-snapshots update :diffs conj (edit/diff (:latest @state-snapshots) state-after))
-          (swap! state-snapshots assoc :latest state-after))))
+            (let [{:keys [diffs]} @state-snapshots]
+              ; record target for each message
+              (swap! state-snapshots update :message-targets
+                     into (->> messages-after
+                               (take-last messages-emitted)
+                               (select [ALL :message :to])))
+              ; record diffs required for each message
+              (swap! state-snapshots update :message-diffs
+                     into (repeat messages-emitted (inc (count diffs))))))
+          ; add diff and new state if changed
+          (let [{:keys [latest]} @state-snapshots]
+            (when (not= state-after latest)
+              (swap! state-snapshots update :diffs conj (edit/diff latest state-after))
+              (swap! state-snapshots assoc :latest state-after))))))
+    ; remove internal data not needed by app
+    (swap! state-snapshots dissoc :latest)
 
     ; TODO cljc hydration fn, shared with reagent app, invariant asserted in CI for all tests
     (comment (reduce edit/patch {} (:diffs @state-snapshots)))
