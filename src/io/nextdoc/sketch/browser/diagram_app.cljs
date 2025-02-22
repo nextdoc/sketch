@@ -67,16 +67,22 @@
        "}"))
 
 (defn graphviz-component [dot-string]
-  (let [container-ref (atom nil)]
+  (let [container-ref (atom nil)
+        with-size-control (fn []
+                            (-> js/d3
+                                (.select @container-ref)
+                                (.select "svg")
+                                (.attr "viewBox" "0 0 100 100")
+                                (.attr "preserveAspectRatio" "xMidYMid meet")))]
     (r/create-class
-      {:display-name "GraphvizComponent"
+      {:display-name "Graphviz"
        :component-did-mount
        (fn [_]
          (when @container-ref
            (-> js/d3
                (.select @container-ref)
                (.graphviz)
-               (.renderDot dot-string))))
+               (.renderDot dot-string with-size-control))))
        :component-did-update
        (fn [this _]
          (when @container-ref
@@ -87,7 +93,7 @@
                  (.transition (fn [] (-> js/d3 (.transition) (.duration 500))))
                  (.renderDot new-dot-string)))))
        :reagent-render
-       (fn [_] [:div {:ref (fn [el] (reset! container-ref el))}])})))
+       (fn [_] [:div.graphviz {:ref (fn [el] (reset! container-ref el))}])})))
 
 #_(defn render-pre [data]
     (let [formatted (with-out-str (cljs.pprint/pprint data))
@@ -183,8 +189,8 @@
                                                                  {:store store-key
                                                                   :data  data}))))}))
                                      actors-visible)]
-      [:div {:onMouseMove change-divider-location!
-             :onMouseUp   stop-resizing!}
+      [:div#diagram-app {:onMouseMove change-divider-location!
+                         :onMouseUp   stop-resizing!}
 
        [:div.title
         [:h3 title]
@@ -231,7 +237,10 @@
        "Render failed! See console for more info."])))
 
 (defn ^:dev/after-load mount! []
-  (rdc/render (rdc/create-root (.getElementById js/document "app")) [app]))
+  (let [diagram-app (.getElementById js/document "diagram-app")]
+    (if diagram-app
+      (rdc/render (.getElementById js/document "app") [app])
+      (rdc/render (rdc/create-root (.getElementById js/document "app")) [app]))))
 
 (defn ^:export load
   [title mermaid-diagram states model]
