@@ -66,9 +66,10 @@
        "  >];\n"
        "}"))
 
-(defn graphviz-component [dot-string]
+(defn graphviz-component [_]
   (let [container-ref (atom nil)
         with-size-control (fn []
+                            ; set initial attrs to keep/scale svg inside parent
                             (-> js/d3
                                 (.select @container-ref)
                                 (.select "svg")
@@ -77,23 +78,27 @@
     (r/create-class
       {:display-name "Graphviz"
        :component-did-mount
-       (fn [_]
-         (when @container-ref
-           (-> js/d3
-               (.select @container-ref)
-               (.graphviz)
-               (.renderDot dot-string with-size-control))))
-       :component-did-update
-       (fn [this _]
-         (when @container-ref
-           (let [new-dot-string (second (r/argv this))]
+       (fn [this]
+         (let [{:keys [dot]} (r/props this)]
+           (when @container-ref
              (-> js/d3
                  (.select @container-ref)
                  (.graphviz)
-                 (.transition (fn [] (-> js/d3 (.transition) (.duration 500))))
-                 (.renderDot new-dot-string)))))
+                 (.renderDot dot with-size-control)))))
+       :component-did-update
+       (fn [this _ _]
+         (when @container-ref
+           (let [{:keys [dot]} (r/props this)]
+             (-> js/d3
+                 (.select @container-ref)
+                 (.graphviz)
+                 (.renderDot dot)
+                 (.transition (fn [] (-> js/d3 (.transition) (.duration 500))))))))
        :reagent-render
-       (fn [_] [:div.graphviz {:ref (fn [el] (reset! container-ref el))}])})))
+       (fn [props]
+         (let [{:keys [data]} props]
+           [:div.graphviz {:style {:height (str (* (count data) 10) "vh")} ; TODO transition this in update
+                           :ref   (fn [el] (reset! container-ref el))}]))})))
 
 #_(defn render-pre [data]
     (let [formatted (with-out-str (cljs.pprint/pprint data))
@@ -216,20 +221,20 @@
                                    :padding       "1rem"
                                    :margin-bottom "1rem"}}
                      [:div store]
-                     [graphviz-component
-                      (case (store-types store)
-                        :database
-                        (-> (reduce-kv (fn store-data [acc k v]
-                                         (conj acc {:name (name k)
-                                                    :data (reduce-kv (fn [acc id attrs]
-                                                                       (assoc acc id (merge attrs {:id id})))
-                                                                     {}
-                                                                     v)}))
-                                       []
-                                       data)
-                            (create-tables-diagram {}))
-                        :associative
-                        (create-map-table data))]])]])]]])
+                     [graphviz-component {:data data
+                                          :dot  (case (store-types store)
+                                                  :database
+                                                  (-> (reduce-kv (fn store-data [acc k v]
+                                                                   (conj acc {:name (name k)
+                                                                              :data (reduce-kv (fn [acc id attrs]
+                                                                                                 (assoc acc id (merge attrs {:id id})))
+                                                                                               {}
+                                                                                               v)}))
+                                                                 []
+                                                                 data)
+                                                      (create-tables-diagram {}))
+                                                  :associative
+                                                  (create-map-table data))}]])]])]]])
     (catch :default e
       (js/console.error (ex-message e) (some-> e (ex-data) (clj->js)))
       [:div {:style {:padding "1rem"
