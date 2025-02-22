@@ -24,7 +24,7 @@
                     "no data when app starts")))
    :handler (fn [{:keys [state fixtures]}]
               (let [temp-id (random-uuid)
-                    new-user {:id temp-id
+                    new-user {:id        temp-id
                               :user-name (:user-name fixtures)}]
                 ; write to local storage
                 (sketch-run/put-record! (:core-data state) :users temp-id new-user)
@@ -64,7 +64,7 @@
               (let [temp-user (first (sketch-run/query (:core-data state) :users (constantly true)))
                     api-user (-> messages last :message :payload)]
                 ; remove temp user
-                (sketch-run/delete-record! (:core-data state) :users (:id temp-user) )
+                (sketch-run/delete-record! (:core-data state) :users (:id temp-user))
                 ; write server user with status to storage
                 (sketch-run/put-record! (:core-data state) :users (:id api-user) api-user)
                 ; request weather
@@ -216,16 +216,16 @@
 
 (def app-start-chapter '[app-user-info-request
                          lambda-cold-start
-                          api-user-info-response
+                         api-user-info-response
                          app-handle-user-response
-                         ;lambda-weather-start
-                         ;api-weather-response
-                         ;lambda-weather-response
-                         ;app-weather-response
-                         ;lambda-poll-weather
-                         ;api-weather-alert-response
-                         ;lambda-push-weather-alert
-                         ;app-weather-change
+                         lambda-weather-start
+                         api-weather-response
+                         lambda-weather-response
+                         app-weather-response
+                         lambda-poll-weather
+                         api-weather-alert-response
+                         lambda-push-weather-alert
+                         app-weather-change
                          ])
 
 ; step thunks with indirection so exceptions can provide location
