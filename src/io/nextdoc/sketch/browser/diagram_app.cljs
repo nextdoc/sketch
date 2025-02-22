@@ -74,31 +74,39 @@
                                 (.select @container-ref)
                                 (.select "svg")
                                 (.attr "viewBox" "0 0 100 100")
-                                (.attr "preserveAspectRatio" "xMidYMid meet")))]
+                                (.attr "preserveAspectRatio" "xMidYMid meet")))
+        with-height-transition (fn [n]
+                                 (-> js/d3
+                                     (.select @container-ref)
+                                     (.transition)
+                                     (.duration 500)
+                                     (.style "height" (str (* n 10) "vh"))))]
     (r/create-class
       {:display-name "Graphviz"
        :component-did-mount
        (fn [this]
-         (let [{:keys [dot]} (r/props this)]
+         (let [{:keys [dot table-count]} (r/props this)]
            (when @container-ref
+             (with-height-transition table-count)
              (-> js/d3
                  (.select @container-ref)
+                 (.select "#diagram")
                  (.graphviz)
                  (.renderDot dot with-size-control)))))
        :component-did-update
        (fn [this _ _]
          (when @container-ref
-           (let [{:keys [dot]} (r/props this)]
+           (let [{:keys [dot table-count]} (r/props this)]
+             (with-height-transition table-count)
              (-> js/d3
                  (.select @container-ref)
+                 (.select "#diagram")
                  (.graphviz)
                  (.renderDot dot)
                  (.transition (fn [] (-> js/d3 (.transition) (.duration 500))))))))
        :reagent-render
-       (fn [props]
-         (let [{:keys [data]} props]
-           [:div.graphviz {:style {:height (str (* (count data) 10) "vh")} ; TODO transition this in update
-                           :ref   (fn [el] (reset! container-ref el))}]))})))
+       (fn [_] [:div.graphviz {:ref (fn [el] (reset! container-ref el))}
+                [:div#diagram]])})))
 
 #_(defn render-pre [data]
     (let [formatted (with-out-str (cljs.pprint/pprint data))
@@ -221,20 +229,24 @@
                                    :padding       "1rem"
                                    :margin-bottom "1rem"}}
                      [:div store]
-                     [graphviz-component {:data data
-                                          :dot  (case (store-types store)
-                                                  :database
-                                                  (-> (reduce-kv (fn store-data [acc k v]
-                                                                   (conj acc {:name (name k)
-                                                                              :data (reduce-kv (fn [acc id attrs]
-                                                                                                 (assoc acc id (merge attrs {:id id})))
-                                                                                               {}
-                                                                                               v)}))
-                                                                 []
-                                                                 data)
-                                                      (create-tables-diagram {}))
-                                                  :associative
-                                                  (create-map-table data))}]])]])]]])
+                     [graphviz-component
+                      {:data        data
+                       :table-count (case (store-types store)
+                                      :database (count data)
+                                      :associative (count (keys data)))
+                       :dot         (case (store-types store)
+                                      :database
+                                      (-> (reduce-kv (fn store-data [acc k v]
+                                                       (conj acc {:name (name k)
+                                                                  :data (reduce-kv (fn [acc id attrs]
+                                                                                     (assoc acc id (merge attrs {:id id})))
+                                                                                   {}
+                                                                                   v)}))
+                                                     []
+                                                     data)
+                                          (create-tables-diagram {}))
+                                      :associative
+                                      (create-map-table data))}]])]])]]])
     (catch :default e
       (js/console.error (ex-message e) (some-> e (ex-data) (clj->js)))
       [:div {:style {:padding "1rem"
@@ -271,7 +283,7 @@
                             :actors      actors
                             :store-types store-types
                             :states      states-decoded})
-    (-> (js/mermaid.render (str (random-uuid)) mermaid-diagram)
+    (-> (js/mermaid.render "sequence" mermaid-diagram)
         (.then (fn [result]
                  (when-let [rendered ^String (.-svg result)]
                    (swap! app-state assoc :mermaid rendered))))
