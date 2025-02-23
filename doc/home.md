@@ -12,9 +12,9 @@ components.
 [This test](https://github.com/nextdoc/sketch/blob/main/examples/mobile_weather_app/happy_path_test.clj)
 generates [this static html file](https://nextdoc.github.io/sketch/mobile-weather-app/happy-path-test.html) when run
 
-The actors and the step labels are clickable and this will display the state stored by each actor at any step in the
-test.
-This makes it a very effective storytelling tool.
+The actors and the step labels are clickable will display the state changes made each actor at any step.
+
+This provides a very effective storytelling/discussion tool.
 
 You can clone the repo and run it yourself locally if you want to play with it.
 If you do, try this:
