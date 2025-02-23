@@ -8,11 +8,10 @@
     (require '[shadow.cljs.devtools.api :as shadow])
     (shadow/watch :diagram))
 
-  (shadow/release! :diagram)
-
-  (shadow/stop-worker :diagram)
-
   ; connect browser repl
   (shadow/repl :diagram)
 
+  (shadow/release! :diagram)
+
+  (shadow/stop-worker :diagram)
   )
