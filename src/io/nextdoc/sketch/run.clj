@@ -273,18 +273,24 @@
 
    [:body {:style "background-color:#BEC7FC;"}
     [:div#app]
-    [:script {:src (if dev? "http://localhost:8000/diagram-js/main.js"
-                            (format "https://cdn.jsdelivr.net/gh/nextdoc/sketch@%s/app/main.js" tag))}]
-    [:script (format "io.nextdoc.sketch.browser.diagram_app.load('%s', %s, %s, %s);"
-                     title
-                     (json/write-str diagram)
-                     (-> states
-                         (update :diffs #(mapv edit/get-edits %)) ; serializable diffs
-                         (pr-str)
-                         (json/write-str))
-                     (-> model
-                         (pr-str)
-                         (json/write-str)))]]])
+    [:script {:type "text/javascript"}
+     (str/join "\n" ["const load = () => {"
+                     (format "io.nextdoc.sketch.browser.diagram_app.load('%s', %s, %s, %s);"
+                             title
+                             (json/write-str diagram)
+                             (-> states
+                                 (update :diffs #(mapv edit/get-edits %)) ; serializable diffs
+                                 (pr-str)
+                                 (json/write-str))
+                             (-> model
+                                 (pr-str)
+                                 (json/write-str)))
+                     "}"])]
+    [:script {:type   "text/javascript"
+              :src    (if dev? "http://localhost:8000/diagram-js/main.js"
+                               (format "https://cdn.jsdelivr.net/gh/nextdoc/sketch@%s/app/main.js" tag))
+              :async  true
+              :onload "load();"}]]])
 
 (defn write-sequence-diagram!
   [{:keys [test-ns-str diagram-dir diagram-config system model-parsed states dev?]}]

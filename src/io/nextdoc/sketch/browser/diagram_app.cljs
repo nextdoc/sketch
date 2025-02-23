@@ -123,8 +123,8 @@
        (fn [] [:div {:ref (fn [el]
                             (reset! container-ref el))}
                "Loading..."])
-       :component-did-update
-       (fn [this _ _]
+       :component-did-mount
+       (fn [this]
          (when-let [svg-container @container-ref]
            ;; Clear any existing content before appending the new SVG.
            (set! (.-innerHTML svg-container) "")
@@ -271,32 +271,34 @@
 
 (defn ^:export load
   [title mermaid-diagram states model]
-  (let [model* (reader/read-string model)
-        actors (->> model*
-                    (select [:locations MAP-VALS (collect-one :id)
-                             (collect [:actors MAP-KEYS])
-                             :state MAP-KEYS])
-                    (reduce (fn [acc [location [actor] state]]
-                              (update-in acc
-                                         [(keyword (str (name location) "-" (name actor))) :store]
-                                         (fnil conj #{}) state))
-                            {}))
-        store-types (->> model*
-                         (select [:locations MAP-VALS :state MAP-VALS])
-                         (map (juxt :id :type))
-                         (into {}))
-        states-decoded (-> states
-                           (reader/read-string)
-                           ; convert back to EditScript
-                           (update :diffs #(mapv edit/edits->script %)))]
-    (swap! app-state merge {:title       title
-                            :actors      actors
-                            :store-types store-types
-                            :states      states-decoded})
+  (try
     (-> (js/mermaid.render "sequence" mermaid-diagram)
         (.then (fn [result]
-                 (as-> result $
-                       (js->clj $ :keywordize-keys true)
-                       (:svg $)
-                       (swap! app-state assoc :mermaid $))))
-        (.catch js/console.error))))
+                 (let [model* (reader/read-string model)
+                       actors (->> model*
+                                   (select [:locations MAP-VALS (collect-one :id)
+                                            (collect [:actors MAP-KEYS])
+                                            :state MAP-KEYS])
+                                   (reduce (fn [acc [location [actor] state]]
+                                             (update-in acc
+                                                        [(keyword (str (name location) "-" (name actor))) :store]
+                                                        (fnil conj #{}) state))
+                                           {}))
+                       store-types (->> model*
+                                        (select [:locations MAP-VALS :state MAP-VALS])
+                                        (map (juxt :id :type))
+                                        (into {}))
+                       states-decoded (-> states
+                                          (reader/read-string)
+                                          ; convert back to EditScript
+                                          (update :diffs #(mapv edit/edits->script %)))]
+                   (swap! app-state merge {:title       title
+                                           :actors      actors
+                                           :store-types store-types
+                                           :states      states-decoded
+                                           :mermaid     (-> result
+                                                            (js->clj :keywordize-keys true)
+                                                            :svg)}))))
+        (.catch js/console.error))
+    (catch :default e
+      (js/console.log e))))
