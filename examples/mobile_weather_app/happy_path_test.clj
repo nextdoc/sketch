@@ -225,8 +225,7 @@
                          lambda-poll-weather
                          api-weather-alert-response
                          lambda-push-weather-alert
-                         app-weather-change
-                         ])
+                         app-weather-change])
 
 ; step thunks with indirection so exceptions can provide location
 (def test-steps (mapv #(ns-resolve *ns* %)
@@ -238,7 +237,7 @@
         :diagram-config            {#_#_:actor-order []}
         :closed-data-flow-schemas? true
         :closed-state-schemas?     true
-        :dev?                      false}
+        :dev?                      true}
        (with-config)
        (sketch-run/run-steps!)
        (log/with-merged-config (sketch-run/log-config (sketch-run/this-ns)))))

@@ -108,11 +108,6 @@
        (fn [_] [:div.graphviz {:ref (fn [el] (reset! container-ref el))}
                 [:div#diagram]])})))
 
-#_(defn render-pre [data]
-    (let [formatted (with-out-str (cljs.pprint/pprint data))
-          escaped (clojure.string/replace formatted #"<" "&lt;")] ; Escape HTML
-      [:pre escaped]))
-
 (defn toggle-actor!
   [actor-name]
   (let [k (keyword actor-name)]
@@ -178,9 +173,11 @@
   (try
     (let [{:keys [title left-width mermaid emit-count states actors actors-visible store-types]} @app-state
           {:keys [diffs message-diffs]} states
+          next-msg-num (inc emit-count)                     ; add 1 to show states after message received, up to next message emitted
+          diffs-applied (nth message-diffs next-msg-num)
           states-at-step (when (and emit-count states)
                            (->> diffs
-                                (take (nth message-diffs emit-count))
+                                (take diffs-applied)
                                 (reduce edit/patch {})))
           visible-state-stores (mapv (fn actor-storages [actor]
                                        (let [stores-in-actor (:store (get actors actor))]
@@ -205,14 +202,30 @@
       [:div#diagram-app {:onMouseMove change-divider-location!
                          :onMouseUp   stop-resizing!}
 
-       [:div.title
-        [:h3 title]
-        ;[render-pre @app-state]
-        ]
+       [:div.title [:h3 title]]
 
        [:div.container
         [:div.mermaid.left {:style {:width (str left-width "%")}}
-         [mermaid-sequence {:svg-string mermaid}]]
+         [mermaid-sequence {:svg-string mermaid}]
+         #_[:div.debug
+          [:h3 "debug"]
+          [:table {:border 0
+                   :style  {:width        "100%"
+                            :table-layout "fixed"}}
+           (let [formatted (fn [v] [:pre (-> (with-out-str (cljs.pprint/pprint v))
+                                             (clojure.string/replace #"<" "&lt;"))])]
+             (into
+               [:tbody
+                [:tr
+                 [:td {:style {:width "100px"}} "msg diffs"]
+                 [:td (formatted message-diffs)]]
+                [:tr [:td "msg#"] [:td emit-count]]
+                [:tr [:td "next"] [:td next-msg-num]]
+                [:tr [:td "diffs"] [:td diffs-applied]]]
+               (map-indexed (fn [i diff]
+                              [:tr [:td (str "diff-" (inc i))]
+                               [:td (formatted diff)]])
+                            diffs)))]]]
 
         [:div.divider {:onMouseDown start-resizing!}]
 

@@ -453,10 +453,9 @@
                                      (select [:locations MAP-VALS :state MAP-VALS])
                                      (map (juxt :id :type))
                                      (into {}))
-        state-snapshots (atom {:latest          {}
-                               :diffs           []
-                               :message-diffs   []
-                               :message-targets []})
+        state-snapshots (atom {:latest        {}
+                               :diffs         []
+                               :message-diffs []})
         state-edn (fn [] (->> (:state-stores @system)
                               (reduce-kv (fn [acc k v]
                                            (assoc acc k
@@ -473,21 +472,26 @@
               messages-after (all-messages)
               message-count-after (count messages-after)
               messages-emitted (- message-count-after message-count-before)]
-          (when (pos-int? messages-emitted)
-            (let [{:keys [diffs]} @state-snapshots]
-              ; record target for each message
-              (swap! state-snapshots update :message-targets
-                     into (->> messages-after
-                               (take-last messages-emitted)
-                               (select [ALL :message :to])))
-              ; record diffs required for each message
-              (swap! state-snapshots update :message-diffs
-                     into (repeat messages-emitted (inc (count diffs))))))
+
+          ; TODO test these variations
+          ;  steps that do not change state
+          ;  steps that do not emit
+          ;  steps that emit > 1 message
+          ;  assert correct :message-diffs
+
           ; add diff and new state if changed
           (let [{:keys [latest]} @state-snapshots]
             (when (not= state-after latest)
               (swap! state-snapshots update :diffs conj (edit/diff latest state-after))
-              (swap! state-snapshots assoc :latest state-after))))))
+              (swap! state-snapshots assoc :latest state-after)))
+          ; record diffs required for each message
+          (when (pos-int? messages-emitted)
+            (let [{:keys [diffs]} @state-snapshots
+                  n-msg-diffs (repeat messages-emitted (count diffs))]
+              (swap! state-snapshots update :message-diffs into n-msg-diffs))))))
+    ; add an extra msg-diff after the last message because the msg click
+    ; applies diff count for the following msg i.e. last msg needs a fake entry
+    (swap! state-snapshots update :message-diffs conj (count (:diffs @state-snapshots)))
     ; remove internal data not needed by app
     (swap! state-snapshots dissoc :latest)
 
