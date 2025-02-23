@@ -4,7 +4,7 @@
             [clojure.java.io :as io]
             [clojure.pprint :as pprint]
             [clojure.string :as str]
-            [com.rpl.specter :refer [ALL MAP-VALS collect-one multi-path select select-first srange]]
+            [com.rpl.specter :refer [ALL MAP-VALS NONE collect-one multi-path select select-first setval]]
             [editscript.core :as edit]
             [hiccup.core :refer [html]]
             [io.nextdoc.sketch.diagrams :refer [flow-sequence]]
@@ -22,8 +22,8 @@
     "Retrieves a record by its ID from the specified entity type table")
   (query [this entity-type predicate]
     "Returns all records from entity type table that match the predicate. Records returned include :id.")
-  (put-record! [this entity-type id value]
-    "Stores a record with the given ID in the entity type table")
+  (put-record! [this entity-type value]
+    "Stores a record in the entity type table")
   (delete-record! [this entity-type id]
     "Removes the record with the given ID from the entity type table")
   (clear! [this]
@@ -59,17 +59,16 @@
       StateDatabase
       (create-table [_ entity-type]
         (when (nil? (get @database entity-type))
-          (swap! database assoc entity-type {})))
+          (swap! database assoc entity-type #{})))
       (get-record [_ entity-type id]
-        (get-in @database [entity-type id]))
+        (select-first [entity-type ALL (comp #{id} :id)] @database))
       (query [_ entity-type predicate]
-        (->> (get @database entity-type)
-             (filterv (fn [[_ v]] (predicate v)))
-             (mapv (fn [[k v]] (assoc v :id k)))))
-      (put-record! [_ entity-type id record]
-        (swap! database assoc-in [entity-type id] record))
+        (select [entity-type ALL predicate] @database))
+      (put-record! [_ entity-type record]
+        (swap! database update entity-type (fnil conj #{}) record))
       (delete-record! [_ entity-type id]
-        (swap! database update entity-type dissoc id))
+        (swap! database update entity-type (fn [db]
+                                             (->> db (remove (comp #{id} :id)) set))))
       (clear! [_] (reset! database {}))
       (as-map [_] @database))))
 
@@ -91,9 +90,9 @@
     (query [_ entity-type predicate]
       ; TODO check entity type allowed in meta
       (query impl entity-type predicate))
-    (put-record! [_ entity-type id record]
+    (put-record! [_ entity-type record]
       ; TODO check....
-      (put-record! impl entity-type id record)
+      (put-record! impl entity-type record)
       )
     (delete-record! [_ entity-type id]
       ; TODO check....

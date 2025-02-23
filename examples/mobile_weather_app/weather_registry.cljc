@@ -8,8 +8,8 @@
    :aws-ddb/user                       [:map]
    :aws-env/env                        [:map]
    :aws-lambda/ddb                     [:map
-                                        [:users [:map-of :uuid :weather/user]]
-                                        [:citys [:map-of :uuid :weather/city]]]
+                                        [:users [:set :weather/user]]
+                                        [:citys [:set :weather/city]]]
    :aws-lambda/env                     [:map-of :string :string]
    :aws-lambda/error                   [:map]
    :aws-lambda/user-info               [:map]
@@ -27,8 +27,8 @@
    :iphone-core-data/city              :weather/city
    :iphone-core-data/user              [:map]
    :iphone-weather-app/core-data       [:map
-                                        [:users [:map-of :uuid :weather/user]]
-                                        [:citys [:map-of :uuid :weather/city]]]
+                                        [:users [:set :weather/user]]
+                                        [:citys [:set :weather/city]]]
    :iphone-weather-app/error           [:map]
    :iphone-weather-app/weather-change  :weather/city
    :open-weather/api                   [:map]
@@ -45,6 +45,7 @@
                   [:latitude {:optional true} :float]
                   [:longitude {:optional true} :float]]
    :weather/city [:map
+                  [:id :uuid]
                   [:name :string]
                   [:temp :double]
                   [:feels-like :double]

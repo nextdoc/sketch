@@ -187,11 +187,11 @@
                                                                (let [single-store (get states-at-step store-key)
                                                                      data (if single-store
                                                                             (if (= :database (store-types store-key))
-                                                                              ; remove empty records
-                                                                              (reduce-kv (fn [acc k v]
-                                                                                           (if (empty? v)
+                                                                              ; hide empty tables
+                                                                              (reduce-kv (fn [acc entity-type records]
+                                                                                           (if (empty? records)
                                                                                              acc
-                                                                                             (assoc acc k v)))
+                                                                                             (assoc acc entity-type records)))
                                                                                          {}
                                                                                          single-store)
                                                                               single-store)
@@ -207,25 +207,26 @@
        [:div.container
         [:div.mermaid.left {:style {:width (str left-width "%")}}
          [mermaid-sequence {:svg-string mermaid}]
+
          #_[:div.debug
-          [:h3 "debug"]
-          [:table {:border 0
-                   :style  {:width        "100%"
-                            :table-layout "fixed"}}
-           (let [formatted (fn [v] [:pre (-> (with-out-str (cljs.pprint/pprint v))
-                                             (clojure.string/replace #"<" "&lt;"))])]
-             (into
-               [:tbody
-                [:tr
-                 [:td {:style {:width "100px"}} "msg diffs"]
-                 [:td (formatted message-diffs)]]
-                [:tr [:td "msg#"] [:td emit-count]]
-                [:tr [:td "next"] [:td next-msg-num]]
-                [:tr [:td "diffs"] [:td diffs-applied]]]
-               (map-indexed (fn [i diff]
-                              [:tr [:td (str "diff-" (inc i))]
-                               [:td (formatted diff)]])
-                            diffs)))]]]
+            [:h3 "debug"]
+            [:table {:border 0
+                     :style  {:width        "100%"
+                              :table-layout "fixed"}}
+             (let [formatted (fn [v] [:pre (-> (with-out-str (cljs.pprint/pprint v))
+                                               (clojure.string/replace #"<" "&lt;"))])]
+               (into
+                 [:tbody
+                  [:tr
+                   [:td {:style {:width "100px"}} "msg diffs"]
+                   [:td (formatted message-diffs)]]
+                  [:tr [:td "msg#"] [:td emit-count]]
+                  [:tr [:td "next"] [:td next-msg-num]]
+                  [:tr [:td "diffs"] [:td diffs-applied]]]
+                 (map-indexed (fn [i diff]
+                                [:tr [:td (str "diff-" (inc i))]
+                                 [:td (formatted diff)]])
+                              diffs)))]]]
 
         [:div.divider {:onMouseDown start-resizing!}]
 
@@ -249,12 +250,12 @@
                                       :associative (count (keys data)))
                        :dot         (case (store-types store)
                                       :database
-                                      (-> (reduce-kv (fn store-data [acc k v]
-                                                       (conj acc {:name (name k)
-                                                                  :data (reduce-kv (fn [acc id attrs]
-                                                                                     (assoc acc id (merge attrs {:id id})))
-                                                                                   {}
-                                                                                   v)}))
+                                      (-> (reduce-kv (fn store-data [acc entity-type records]
+                                                       (conj acc {:name (name entity-type)
+                                                                  :data (reduce (fn [acc record]
+                                                                                  (assoc acc (:id record) record))
+                                                                                {}
+                                                                                records)}))
                                                      []
                                                      data)
                                           (create-tables-diagram {}))

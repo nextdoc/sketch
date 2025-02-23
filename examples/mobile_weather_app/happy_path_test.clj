@@ -23,11 +23,10 @@
                 (is (every? empty? (vals initial-data))
                     "no data when app starts")))
    :handler (fn [{:keys [state fixtures]}]
-              (let [temp-id (random-uuid)
-                    new-user {:id        temp-id
+              (let [new-user {:id        (random-uuid)
                               :user-name (:user-name fixtures)}]
                 ; write to local storage
-                (sketch-run/put-record! (:core-data state) :users temp-id new-user)
+                (sketch-run/put-record! (:core-data state) :users new-user)
                 ; send request to api
                 {:emit [{:to      :aws/lambda
                          :request :user-info
@@ -47,11 +46,10 @@
    :handler (fn [{:keys [state messages]}]
               (let [user-name (-> messages last :message :payload :user-name)
                     matches (sketch-run/query (:ddb state) :user (comp #{user-name} :user-name))
-                    id (random-uuid)
                     user (-> user-name
                              (domain/user-with-status matches)
-                             (assoc :id id))]
-                (sketch-run/put-record! (:ddb state) :users id user)
+                             (assoc :id (random-uuid)))]
+                (sketch-run/put-record! (:ddb state) :users user)
                 {:emit [{:to        :iphone/weather-app
                          :request   :user-info
                          :direction :response
@@ -66,7 +64,7 @@
                 ; remove temp user
                 (sketch-run/delete-record! (:core-data state) :users (:id temp-user))
                 ; write server user with status to storage
-                (sketch-run/put-record! (:core-data state) :users (:id api-user) api-user)
+                (sketch-run/put-record! (:core-data state) :users api-user)
                 ; request weather
                 {:emit [{:to      :aws/lambda
                          :request :weather-info
@@ -82,7 +80,6 @@
                     users-found (sketch-run/query (:ddb state) :users (comp #{user-name} :user-name))]
                 (is (= 1 (count users-found)))
                 (sketch-run/put-record! (:ddb state) :users
-                                        (:id (first users-found))
                                         (merge (first users-found)
                                                {:latitude  latitude
                                                 :longitude longitude}))
@@ -105,21 +102,24 @@
 (defn lambda-weather-response []
   {:actor   :aws/lambda
    :action  "AWS Lambda forwards weather data to mobile app"
-   :handler (fn [{:keys [messages]}]
-              (let [{:keys [timezone current]} (-> messages last :message :payload)]
+   :handler (fn [{:keys [state messages]}]
+              (let [{:keys [timezone current]} (-> messages last :message :payload)
+                    city {:id         (random-uuid)
+                          :name       timezone
+                          :temp       (:temp current)
+                          :feels-like (:feels-like current)}]
+                (sketch-run/put-record! (:ddb state) :citys city)
                 {:emit [{:to        :iphone/weather-app
                          :request   :weather-info
                          :direction :response
-                         :payload   {:name       timezone
-                                     :temp       (:temp current)
-                                     :feels-like (:feels-like current)}}]}))})
+                         :payload   city}]}))})
 
 (defn app-weather-response []
   {:actor   :iphone/weather-app
    :action  "Mobile app stores weather data in Core Data"
    :handler (fn [{:keys [state messages]}]
               (let [weather-data (-> messages last :message :payload)]
-                (sketch-run/put-record! (:core-data state) :citys (random-uuid) weather-data)
+                (sketch-run/put-record! (:core-data state) :citys weather-data)
                 {:emit []}))})
 
 (defn lambda-poll-weather []
@@ -153,14 +153,14 @@
 (defn lambda-push-weather-alert []
   {:actor   :aws/lambda
    :action  "AWS Lambda pushes weather alert to mobile app"
-   :handler (fn [{:keys [messages]}]
-              (let [{:keys [timezone current alerts]} (-> messages last :message :payload)]
+   :handler (fn [{:keys [state messages]}]
+              (let [{:keys [timezone alerts]} (-> messages last :message :payload)
+                    [city] (sketch-run/query (:ddb state) :citys (comp #{timezone} :name))
+                    with-alerts (assoc city :alerts (mapv :description alerts))]
+                (sketch-run/put-record! (:ddb state) :citys with-alerts)
                 {:emit [{:to      :iphone/weather-app
                          :event   :weather-change
-                         :payload {:name       timezone
-                                   :temp       (:temp current)
-                                   :feels-like (:feels-like current)
-                                   :alerts     (mapv :event alerts)}}]}))})
+                         :payload with-alerts}]}))})
 
 (defn app-weather-change []
   {:actor   :iphone/weather-app
@@ -170,7 +170,7 @@
                     cities (sketch-run/query (:core-data state) :citys #(= (:name %) (:name weather-data)))
                     city (first cities)]
                 (when city
-                  (sketch-run/put-record! (:core-data state) :citys (:id city) weather-data))
+                  (sketch-run/put-record! (:core-data state) :citys weather-data))
                 {:emit []}))})
 
 ;;;; TEST UTILS ;;;;
