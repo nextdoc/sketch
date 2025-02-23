@@ -67,16 +67,15 @@
 
 (defn graphviz-component [_]
   (let [container-ref (atom nil)
+        d3-element (fn [selector] (-> (.select js/d3 @container-ref)
+                                      (.select selector)))
         with-size-control (fn []
                             ; set initial attrs to keep/scale svg inside parent
-                            (-> js/d3
-                                (.select @container-ref)
-                                (.select "svg")
+                            (-> (d3-element "svg")
                                 (.attr "viewBox" "0 0 100 100")
                                 (.attr "preserveAspectRatio" "xMidYMid meet")))
         with-height-transition (fn [n]
-                                 (-> js/d3
-                                     (.select @container-ref)
+                                 (-> (.select js/d3 @container-ref)
                                      (.transition)
                                      (.duration 500)
                                      (.style "height" (str (* n 10) "vh"))))]
@@ -87,9 +86,7 @@
          (let [{:keys [dot table-count]} (r/props this)]
            (when @container-ref
              (with-height-transition table-count)
-             (-> js/d3
-                 (.select @container-ref)
-                 (.select "#diagram")
+             (-> (d3-element "#diagram")
                  (.graphviz)
                  (.renderDot dot with-size-control)))))
        :component-did-update
@@ -97,13 +94,13 @@
          (when @container-ref
            (let [{:keys [dot table-count]} (r/props this)]
              (with-height-transition table-count)
-             (-> js/d3
-                 (.select @container-ref)
-                 (.select "#diagram")
+             (-> (d3-element "#diagram")
                  (.graphviz)
                  (.renderDot dot)
                  (.transition (fn [] (-> js/d3 (.transition) (.duration 500))))))))
        :reagent-render
+       ; container div and diagram svg are d3 animated in parallel
+       ; so rendered as separate nodes to avoid bugs
        (fn [_] [:div.graphviz {:ref (fn [el] (reset! container-ref el))}
                 [:div#diagram]])})))
 
@@ -298,6 +295,8 @@
                             :states      states-decoded})
     (-> (js/mermaid.render "sequence" mermaid-diagram)
         (.then (fn [result]
-                 (when-let [rendered ^String (.-svg result)]
-                   (swap! app-state assoc :mermaid rendered))))
+                 (as-> result $
+                       (js->clj $ :keywordize-keys true)
+                       (:svg $)
+                       (swap! app-state assoc :mermaid $))))
         (.catch js/console.error))))
