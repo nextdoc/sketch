@@ -5,8 +5,7 @@
             [goog.string :as gstring]
             [goog.string.format]
             [reagent.core :as r]
-            [reagent.dom.client :as rdc]
-            [sc.api]))
+            [reagent.dom.client :as rdc]))
 
 (defonce app-state (r/atom {:left-width 75
                             :emit-count nil
