@@ -22,7 +22,10 @@
             (when (seq data)
               (let [keys (keys (first (vals data)))
                     headers (str "<TR>"
-                                 (apply str (map #(str "<TD ALIGN='LEFT'><B>" (name %) "</B></TD>") keys))
+                                 (->> keys
+                                      (take max-columns)
+                                      (map #(str "<TD ALIGN='LEFT'><B>" (name %) "</B></TD>"))
+                                      (apply str))
                                  "</TR>")]
                 (str "<TABLE BGCOLOR='white' BORDER='0' CELLBORDER='1' CELLSPACING='0' CELLPADDING='4'>"
                      "<TR><TD ALIGN='LEFT' COLSPAN='" (count keys) "'><B>" table-name "</B></TD></TR>"
