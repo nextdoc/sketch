@@ -4,104 +4,47 @@
             [clojure.java.io :as io]
             [clojure.pprint :as pprint]
             [clojure.string :as str]
-            [com.rpl.specter :refer [ALL MAP-VALS NONE collect-one multi-path select select-first setval]]
+            [com.rpl.specter :refer [ALL MAP-VALS collect-one multi-path select select-first]]
             [editscript.core :as edit]
             [hiccup.core :refer [html]]
             [io.nextdoc.sketch.diagrams :refer [flow-sequence]]
+            [io.nextdoc.sketch.state :as state]
             [malli.core :as m]
             [malli.dev.pretty :as mp]
             [malli.util :as mu]
             [taoensso.timbre :as log])
   (:import (clojure.lang ExceptionInfo)))
 
-(defprotocol StateDatabase
-  "operations that a typical database can perform"
-  (create-table [this entity-type]
-    "Creates a new table for the given entity type if it doesn't exist")
-  (get-record [this entity-type id]
-    "Retrieves a record by its ID from the specified entity type table")
-  (query [this entity-type predicate]
-    "Returns all records from entity type table that match the predicate. Records returned include :id.")
-  (put-record! [this entity-type value]
-    "Stores a record in the entity type table")
-  (delete-record! [this entity-type id]
-    "Removes the record with the given ID from the entity type table")
-  (clear! [this]
-    "Removes all records from all tables")
-  (as-map [this]
-    "Returns the entire database state as a nested map"))
-
-(defprotocol StateAssociative
-  "operations that a typical lookup data-structure can perform"
-  (get-value [this id]
-    "Retrieves a value by its ID from the lookup store")
-  (put-value! [this id value]
-    "Stores a value with the given ID in the lookup store")
-  (delete-value! [this id]
-    "Removes the value with the given ID from the lookup store")
-  (as-lookup [this]
-    "Returns the entire lookup store state as a map"))
-
-(defn atom-state-store
-  []
-  (let [database (atom {})
-        lookup (atom {})]
-    (reify
-      StateAssociative
-      (get-value [_ id]
-        (get @lookup id))
-      (put-value! [_ id value]
-        (swap! lookup assoc id value))
-      (delete-value! [_ id]
-        (swap! lookup dissoc id))
-      (as-lookup [_]
-        @lookup)
-      StateDatabase
-      (create-table [_ entity-type]
-        (when (nil? (get @database entity-type))
-          (swap! database assoc entity-type #{})))
-      (get-record [_ entity-type id]
-        (select-first [entity-type ALL (comp #{id} :id)] @database))
-      (query [_ entity-type predicate]
-        (select [entity-type ALL predicate] @database))
-      (put-record! [_ entity-type record]
-        (swap! database update entity-type (fnil conj #{}) record))
-      (delete-record! [_ entity-type id]
-        (swap! database update entity-type (fn [db]
-                                             (->> db (remove (comp #{id} :id)) set))))
-      (clear! [_] (reset! database {}))
-      (as-map [_] @database))))
-
 (defn state-store-wrapped
+  "A delegate state store implementation that creates tables and TODO validates types for all entities persisted in the store"
   [impl {:keys [id entities]}]
   (doseq [entity entities]
-    (create-table impl (keyword (str (name entity) "s"))))
+    (state/create-table impl (keyword (str (name entity) "s"))))
   (reify
-    StateAssociative
-    (get-value [this id] (get-value impl id))
-    (put-value! [this id value] (put-value! impl id value))
-    (delete-value! [this id] (delete-value! impl id))
-    (as-lookup [this] (as-lookup impl))
-    StateDatabase
+    state/StateAssociative
+    (get-value [this id] (state/get-value impl id))
+    (put-value! [this id value] (state/put-value! impl id value))
+    (delete-value! [this id] (state/delete-value! impl id))
+    (as-lookup [this] (state/as-lookup impl))
+    state/StateDatabase
     (get-record [_ entity-type id]
       ; TODO check entity type allowed in meta
-      (get-record impl entity-type id)
-      )
+      (state/get-record impl entity-type id))
     (query [_ entity-type predicate]
       ; TODO check entity type allowed in meta
-      (query impl entity-type predicate))
+      (state/query impl entity-type predicate))
     (put-record! [_ entity-type record]
       ; TODO check....
-      (put-record! impl entity-type record)
+      (state/put-record! impl entity-type record)
       )
     (delete-record! [_ entity-type id]
       ; TODO check....
-      (delete-record! impl entity-type id)
+      (state/delete-record! impl entity-type id)
       )
     (clear! [_]
-      (clear! impl))
+      (state/clear! impl))
     (as-map [_]
-      (as-map impl))))
+      (state/as-map impl))))
 
 (def empty-system {:state-stores            {}
                    :messages                {}
@@ -220,7 +163,7 @@
   (let [{from-actor    :actor
          from-location :location} (actor-meta model-parsed actor-key)]
     (doseq [[k store] (:state handler-context)]
-      (when-not (zero? (count (as-map store)))
+      (when-not (zero? (count (state/as-map store)))
         (let [schema-namespace (str (name (:id from-location)) "-" (name (:id from-actor)))
               schema-name (name k)
               schema-keyword (keyword schema-namespace schema-name)]
@@ -229,8 +172,8 @@
               (let [schema (cond-> (m/deref-recursive (m/schema schema-keyword {:registry registry}))
                                    closed-state-schemas? (mu/closed-schema))
                     state (case (select-first [:locations (:id from-location) :state k :type] model-parsed)
-                            :associative (as-lookup store)
-                            :database (as-map store))]
+                            :associative (state/as-lookup store)
+                            :database (state/as-map store))]
                 (when-let [ex (m/explain schema state)]
                   (let [error (ex-info "invalid storage" {:explain ex})]
                     (log/error (ex-message error))
@@ -392,15 +335,21 @@
                               from-ports (-> from-actor :ports keys set)
                               from-keyword (keyword (name (:id from-location))
                                                     (name (:id from-actor)))
-                              state-stores (reduce (fn [acc state-meta]
+                              ; Expose state specific to the actors location to its handler
+                              actor-state-stores (reduce
+                                                   (fn [acc state-meta]
                                                      (assoc acc (:id state-meta)
-                                                                (or (-> @system :state-stores (get (:id state-meta)))
-                                                                    (let [new-store (state-store-wrapped (state-store) state-meta)]
-                                                                      (swap! system assoc-in [:state-stores (:id state-meta)] new-store)
-                                                                      new-store))))
+                                                                (or
+                                                                  ; already created/wrapped
+                                                                  (-> @system :state-stores (get (:id state-meta)))
+                                                                  ; lazy create/wrap
+                                                                  (let [new-store (state-store-wrapped (state-store (:id state-meta)) state-meta)]
+                                                                    (swap! system assoc-in [:state-stores (:id state-meta)] new-store)
+                                                                    new-store))))
                                                    {}
+                                                   ; location specific states
                                                    (vals (:state from-location)))
-                              handler-context {:state    state-stores
+                              handler-context {:state    actor-state-stores
                                                :messages (get-in @system [:messages actor-key])
                                                :fixtures (get-in @system [:fixtures (:id from-location)])}
                               current-step {:location from-location
@@ -465,8 +414,8 @@
                               (reduce-kv (fn [acc k v]
                                            (assoc acc k
                                                       (case (lookup-state-store-type k)
-                                                        :database (as-map v)
-                                                        :associative (as-lookup v))))
+                                                        :database (state/as-map v)
+                                                        :associative (state/as-lookup v))))
                                          {})))]
 
     (doseq [step steps]

@@ -1,6 +1,7 @@
 (ns mobile-weather-app.happy-path-test
   (:require [clojure.test :refer :all]
             [mobile-weather-app.weather-domain :as domain]
+            [io.nextdoc.sketch.state :as sketch-state]
             [io.nextdoc.sketch.run :as sketch-run]
             [io.nextdoc.sketch.watcher :as sketch-watcher]
             [malli.dev :as md]
@@ -19,14 +20,14 @@
   {:actor   :iphone/weather-app
    :action  "user enters username into mobile app"
    :before  (fn [{:keys [state]}]
-              (let [initial-data (sketch-run/as-map (:core-data state))]
+              (let [initial-data (sketch-state/as-map (:core-data state))]
                 (is (every? empty? (vals initial-data))
                     "no data when app starts")))
    :handler (fn [{:keys [state fixtures]}]
               (let [new-user {:id        (random-uuid)
                               :user-name (:user-name fixtures)}]
                 ; write to local storage
-                (sketch-run/put-record! (:core-data state) :users new-user)
+                (sketch-state/put-record! (:core-data state) :users new-user)
                 ; send request to api
                 {:emit [{:to      :aws/lambda
                          :request :user-info
@@ -37,7 +38,7 @@
   {:actor   :aws/lambda
    :action  "AWS loads environment settings for Lambda"
    :handler (fn [{:keys [state]}]
-              (sketch-run/put-value! (:env state) "API_KEY" "secretkey")
+              (sketch-state/put-value! (:env state) "API_KEY" "secretkey")
               {:emit []})})
 
 (defn api-user-info-response []
@@ -45,11 +46,11 @@
    :action  "API upserts user and responds with status"
    :handler (fn [{:keys [state messages]}]
               (let [user-name (-> messages last :message :payload :user-name)
-                    matches (sketch-run/query (:ddb state) :user (comp #{user-name} :user-name))
+                    matches (sketch-state/query (:ddb state) :user (comp #{user-name} :user-name))
                     user (-> user-name
                              (domain/user-with-status matches)
                              (assoc :id (random-uuid)))]
-                (sketch-run/put-record! (:ddb state) :users user)
+                (sketch-state/put-record! (:ddb state) :users user)
                 {:emit [{:to        :iphone/weather-app
                          :request   :user-info
                          :direction :response
@@ -59,12 +60,12 @@
   {:actor   :iphone/weather-app
    :action  "app updates user, uses CLocationManager to get lat/long and requests weather"
    :handler (fn [{:keys [state fixtures messages]}]
-              (let [temp-user (first (sketch-run/query (:core-data state) :users (constantly true)))
+              (let [temp-user (first (sketch-state/query (:core-data state) :users (constantly true)))
                     api-user (-> messages last :message :payload)]
                 ; remove temp user
-                (sketch-run/delete-record! (:core-data state) :users (:id temp-user))
+                (sketch-state/delete-record! (:core-data state) :users (:id temp-user))
                 ; write server user with status to storage
-                (sketch-run/put-record! (:core-data state) :users api-user)
+                (sketch-state/put-record! (:core-data state) :users api-user)
                 ; request weather
                 {:emit [{:to      :aws/lambda
                          :request :weather-info
@@ -77,15 +78,15 @@
    :action  "AWS tracks (evil) user location and requests weather from provider"
    :handler (fn [{:keys [state messages]}]
               (let [{:keys [user-name latitude longitude]} (-> messages last :message :payload)
-                    users-found (sketch-run/query (:ddb state) :users (comp #{user-name} :user-name))]
+                    users-found (sketch-state/query (:ddb state) :users (comp #{user-name} :user-name))]
                 (is (= 1 (count users-found)))
-                (sketch-run/put-record! (:ddb state) :users
-                                        (merge (first users-found)
-                                               {:latitude  latitude
-                                                :longitude longitude}))
+                (sketch-state/put-record! (:ddb state) :users
+                                          (merge (first users-found)
+                                                 {:latitude  latitude
+                                                  :longitude longitude}))
                 {:emit [{:to      :open-weather/api
                          :request :one-call
-                         :payload {:app-id (sketch-run/get-value (:env state) "API_KEY")
+                         :payload {:app-id (sketch-state/get-value (:env state) "API_KEY")
                                    :lat    latitude
                                    :lon    longitude}}]}))})
 
@@ -108,7 +109,7 @@
                           :name       timezone
                           :temp       (:temp current)
                           :feels-like (:feels-like current)}]
-                (sketch-run/put-record! (:ddb state) :citys city)
+                (sketch-state/put-record! (:ddb state) :citys city)
                 {:emit [{:to        :iphone/weather-app
                          :request   :weather-info
                          :direction :response
@@ -119,18 +120,18 @@
    :action  "Mobile app stores weather data in Core Data"
    :handler (fn [{:keys [state messages]}]
               (let [weather-data (-> messages last :message :payload)]
-                (sketch-run/put-record! (:core-data state) :citys weather-data)
+                (sketch-state/put-record! (:core-data state) :citys weather-data)
                 {:emit []}))})
 
 (defn lambda-poll-weather []
   {:actor   :aws/lambda
    :action  "AWS Lambda polls weather for tracked locations"
    :handler (fn [{:keys [state]}]
-              (let [users (sketch-run/query (:ddb state) :users (comp some? :latitude))]
+              (let [users (sketch-state/query (:ddb state) :users (comp some? :latitude))]
                 {:emit (for [user users]
                          {:to      :open-weather/api
                           :request :one-call
-                          :payload {:app-id (sketch-run/get-value (:env state) "API_KEY")
+                          :payload {:app-id (sketch-state/get-value (:env state) "API_KEY")
                                     :lat    (:latitude user)
                                     :lon    (:longitude user)}})}))})
 
@@ -155,9 +156,9 @@
    :action  "AWS Lambda pushes weather alert to mobile app"
    :handler (fn [{:keys [state messages]}]
               (let [{:keys [timezone alerts]} (-> messages last :message :payload)
-                    [city] (sketch-run/query (:ddb state) :citys (comp #{timezone} :name))
+                    [city] (sketch-state/query (:ddb state) :citys (comp #{timezone} :name))
                     with-alerts (assoc city :alerts (mapv :description alerts))]
-                (sketch-run/put-record! (:ddb state) :citys with-alerts)
+                (sketch-state/put-record! (:ddb state) :citys with-alerts)
                 {:emit [{:to      :iphone/weather-app
                          :event   :weather-change
                          :payload with-alerts}]}))})
@@ -167,10 +168,10 @@
    :action  "Mobile app updates weather data with alerts in Core Data"
    :handler (fn [{:keys [state messages]}]
               (let [weather-data (-> messages last :message :payload)
-                    cities (sketch-run/query (:core-data state) :citys #(= (:name %) (:name weather-data)))
+                    cities (sketch-state/query (:core-data state) :citys #(= (:name %) (:name weather-data)))
                     city (first cities)]
                 (when city
-                  (sketch-run/put-record! (:core-data state) :citys weather-data))
+                  (sketch-state/put-record! (:core-data state) :citys weather-data))
                 {:emit []}))})
 
 ;;;; TEST UTILS ;;;;
@@ -210,7 +211,7 @@
 (defn with-config
   [m]
   (merge m {:model                 "mobile_weather_app/weather-model.edn"
-            :state-store           (fn [] (sketch-run/atom-state-store))
+            :state-store           (fn [id] (sketch-state/atom-state-store))
             :registry              (model/registry)
             :state-schemas-ignored #{}}))
 
@@ -237,7 +238,7 @@
         :diagram-config            {#_#_:actor-order []}
         :closed-data-flow-schemas? true
         :closed-state-schemas?     true
-        :dev?                      false}
+        :dev?                      true}
        (with-config)
        (sketch-run/run-steps!)
        (log/with-merged-config (sketch-run/log-config (sketch-run/this-ns)))))
