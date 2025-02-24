@@ -104,7 +104,7 @@ If you do, try this:
 ## Status
 
 - Early alpha: likely to change but we'll try to avoid breaking changes to the test api
-- Diagram app is a POC, needs [cleanup](https://github.com/nextdoc/sketch/issues/6)
+- Diagram app is a POC, has some rendering/UX issues on iOS
 - Very few tests
 - Sparse documentation
 - Limited time to work on it until [Nextdoc.io](https://nextdoc.io/) has more bandwidth
