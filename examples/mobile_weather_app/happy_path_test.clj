@@ -238,7 +238,7 @@
         :diagram-config            {#_#_:actor-order []}
         :closed-data-flow-schemas? true
         :closed-state-schemas?     true
-        :dev?                      true}
+        :dev?                      false}
        (with-config)
        (sketch-run/run-steps!)
        (log/with-merged-config (sketch-run/log-config (sketch-run/this-ns)))))
