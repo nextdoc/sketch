@@ -257,7 +257,7 @@
                                        :states  states
                                        :model   model-parsed
                                        :dev?    dev?
-                                       :tag     "r0.1.25"}
+                                       :tag     "r0.1.26"}
                                       (sequence-diagram-page)
                                       (html)))
     (log/info success-string)))

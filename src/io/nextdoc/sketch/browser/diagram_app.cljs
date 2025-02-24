@@ -20,7 +20,10 @@
   [tables {:keys [column-headers? max-columns]}]
   (letfn [(make-html-table [data table-name]
             (when (seq data)
-              (let [keys (keys (first (vals data)))
+              (let [keys (->> (vals data)
+                              (first)
+                              (keys)
+                              (sort-by #(if (= :id %) [0 ""] [1 %])))
                     headers (str "<TR>"
                                  (->> keys
                                       (take max-columns)
@@ -34,7 +37,6 @@
                             (for [row-data (vals data)]
                               (str "<TR>"
                                    (->> keys
-                                        (sort-by #(if (= :id %) [0 ""] [1 %]))
                                         (take max-columns)
                                         (mapv #(str "<TD ALIGN='LEFT'>" (str (get row-data %)) "</TD>"))
                                         (apply str))
