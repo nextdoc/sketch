@@ -11,12 +11,28 @@ body {
     flex-direction: column;
 }
 
-.title {
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid #e5e5e5;
+}
+
+.header .title {
     display: flex;
     width: 100%;
-    height: 5vh;
     padding: 0.5rem;
-    border-bottom: 1px solid #888;
+}
+
+.header .settings {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-end;
+}
+
+.header .settings label {
+    min-width: 200px;
 }
 
 .container {

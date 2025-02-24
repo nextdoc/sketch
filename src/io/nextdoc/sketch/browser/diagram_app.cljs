@@ -7,7 +7,9 @@
             [reagent.core :as r]
             [reagent.dom.client :as rdc]))
 
-(defonce app-state (r/atom {:left-width 75
+(defonce app-state (r/atom {:settings   {:column-headers? false
+                                         :max-columns     5}
+                            :left-width 60
                             :emit-count nil
                             :states     nil}))
 
@@ -15,8 +17,7 @@
   "Creates a Graphviz diagram string showing multiple tables side by side
    Input: vector of maps, where each map has :name and :data keys
    Example: [{:name \"table1\" :data {...}} {:name \"table2\" :data {...}}]"
-  [tables {:keys [headers?]
-           :or   {headers? false}}]
+  [tables {:keys [column-headers? max-columns]}]
   (letfn [(make-html-table [data table-name]
             (when (seq data)
               (let [keys (keys (first (vals data)))
@@ -25,12 +26,13 @@
                                  "</TR>")]
                 (str "<TABLE BGCOLOR='white' BORDER='0' CELLBORDER='1' CELLSPACING='0' CELLPADDING='4'>"
                      "<TR><TD ALIGN='LEFT' COLSPAN='" (count keys) "'><B>" table-name "</B></TD></TR>"
-                     (when headers? headers)
+                     (when column-headers? headers)
                      (apply str
                             (for [row-data (vals data)]
                               (str "<TR>"
                                    (->> keys
                                         (sort-by #(if (= :id %) [0 ""] [1 %]))
+                                        (take max-columns)
                                         (mapv #(str "<TD ALIGN='LEFT'>" (str (get row-data %)) "</TD>"))
                                         (apply str))
                                    "</TR>")))
@@ -167,7 +169,7 @@
 (defn app
   []
   (try
-    (let [{:keys [title left-width mermaid emit-count states actors actors-visible store-types]} @app-state
+    (let [{:keys [title left-width mermaid emit-count states actors actors-visible store-types settings]} @app-state
           {:keys [diffs message-diffs]} states
           next-msg-num (inc emit-count)                     ; add 1 to show states after message received, up to next message emitted
           diffs-applied (nth message-diffs next-msg-num)
@@ -198,7 +200,27 @@
       [:div#diagram-app {:onMouseMove change-divider-location!
                          :onMouseUp   stop-resizing!}
 
-       [:div.title [:h3 title]]
+       [:div.header
+
+        [:div.title
+         [:h3 title]]
+
+        [:div.settings
+         [:label
+          [:input {:type      "checkbox"
+                   :checked   (:column-headers? settings)
+                   :on-change #(swap! app-state update-in [:settings :column-headers?] not)}]
+          "Column Headers"]
+         [:label "Max Columns"
+          [:input {:type      "range"
+                   :min       1
+                   :max       10
+                   :value     (:max-columns settings)
+                   :style     {:width "8rem"}
+                   :on-change #(swap! app-state assoc-in [:settings :max-columns]
+                                      (js/parseInt (.. % -target -value)))}]
+          [:span {:style {:margin-left "0.5rem"}}
+           (:max-columns settings)]]]]
 
        [:div.container
         [:div.mermaid.left {:style {:width (str left-width "%")}}
@@ -254,7 +276,7 @@
                                                                                 records)}))
                                                      []
                                                      data)
-                                          (create-tables-diagram {}))
+                                          (create-tables-diagram settings))
                                       :associative
                                       (create-map-table data))}]])]])]]])
     (catch :default e
