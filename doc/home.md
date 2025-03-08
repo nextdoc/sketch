@@ -119,20 +119,20 @@ There is lots of room for improvement...
     - bb create test task: create a new test based on existing config and possibly an existing test
 - Improved documentation
     - for developers
-    - for AI context https://github.com/nextdoc/sketch/issues/13
+    - for [AI context](https://github.com/nextdoc/sketch/issues/13)
 - AI integration
     - targets
-        - MCP https://github.com/nextdoc/sketch/issues/12
-        - Aider https://github.com/nextdoc/sketch/issues/13
+        - [MCP](https://github.com/nextdoc/sketch/issues/12)
+        - [Aider](https://github.com/nextdoc/sketch/issues/13)
 - Watcher
-    - less intrusive schema updates https://github.com/nextdoc/sketch/issues/3
+    - [less intrusive schema updates](https://github.com/nextdoc/sketch/issues/3)
 - Tests: need more
 - Diagram tool features
-    - partial test success render https://github.com/nextdoc/sketch/issues/10
-    - foreign key state rendering https://github.com/nextdoc/sketch/issues/11
-    - improve svg/html container, scaling https://github.com/nextdoc/sketch/issues/14
-    - improve diff highlights https://github.com/nextdoc/sketch/issues/7
-    - improve following steps state control https://github.com/nextdoc/sketch/issues/9
+    - [partial test success render](https://github.com/nextdoc/sketch/issues/10)
+    - [foreign key state rendering](https://github.com/nextdoc/sketch/issues/11)
+    - [improve svg/html container, scaling](https://github.com/nextdoc/sketch/issues/14)
+    - [improve diff highlights](https://github.com/nextdoc/sketch/issues/7)
+    - [improve following steps state control](https://github.com/nextdoc/sketch/issues/9)
 
 ## How can you help?
 
