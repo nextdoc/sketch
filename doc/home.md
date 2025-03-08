@@ -9,12 +9,15 @@ components.
 
 ### Demo
 
-[This test](https://github.com/nextdoc/sketch/blob/main/examples/mobile_weather_app/happy_path_test.clj)
-generates [this static html file](https://nextdoc.github.io/sketch/mobile-weather-app/happy-path-test.html) when run
+When you run [this test](https://github.com/nextdoc/sketch/blob/main/examples/mobile_weather_app/happy_path_test.clj) it generates the static HTML file below.
 
 The actors and the step labels are clickable will display the state changes made each actor at any step.
 
-This provides a very effective storytelling/discussion tool.
+<a href="https://nextdoc.github.io/sketch/mobile-weather-app/happy-path-test.html">
+  <img src="example1.png" alt="Example diagram showing network interactions" style="border: 10px solid white; max-width: 1000px; box-shadow: 0 0 15px rgba(255, 255, 255, 0.8);">
+</a>
+
+This provides a very effective thinking / storytelling / discussion tool.
 
 You can clone the repo and run it yourself locally if you want to play with it.
 If you do, try this:
@@ -48,6 +51,7 @@ If you do, try this:
 - tools
     - bootstrap Malli schema
         - manually populate schemas maintaining naming standard
+    - Reference existing Malli schema from the generated schemas 
     - sync Malli schema as db changes
         - file watcher
         - rewrite-clj diffs schemas and adds missing keywords in alphabetical order
@@ -110,8 +114,6 @@ If you do, try this:
 - Sparse documentation
 - Limited time to work on it until [Nextdoc](https://nextdoc.io/) has more bandwidth
 
-There is lots of room for improvement...
-
 ## Roadmap
 
 - Onboarding
@@ -125,7 +127,7 @@ There is lots of room for improvement...
         - [MCP](https://github.com/nextdoc/sketch/issues/12)
         - [Aider](https://github.com/nextdoc/sketch/issues/13)
 - Watcher
-    - [less intrusive schema updates](https://github.com/nextdoc/sketch/issues/3)
+    - [better formatting for schema updates](https://github.com/nextdoc/sketch/issues/3)
 - Tests: need more
 - Diagram tool features
     - [partial test success render](https://github.com/nextdoc/sketch/issues/10)
@@ -136,8 +138,9 @@ There is lots of room for improvement...
 
 ## How can you help?
 
+- Answer questions in Slack
 - Look at the [issue list](https://github.com/nextdoc/sketch/issues) and contribute a fix
-    - please start with a comment in the issue to confirm your interest and plan
+   - please start with a comment in the issue to confirm your interest and plan
 - If you find Sketch valuable, we'd very much
   appreciate [a sponsorship contribution](https://github.com/sponsors/nextdoc)
 - Use the tool in your projects:
