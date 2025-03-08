@@ -11,7 +11,7 @@
   ; connect browser repl
   (shadow/repl :diagram)
 
-  (shadow/release! :diagram)
+  (do (shadow/release! :diagram) :done)
 
   (shadow/stop-worker :diagram)
   )

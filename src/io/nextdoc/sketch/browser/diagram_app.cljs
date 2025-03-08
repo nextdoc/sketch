@@ -307,6 +307,7 @@
                                             (collect [:actors MAP-KEYS])
                                             :state MAP-KEYS])
                                    (reduce (fn [acc [location [actor] state]]
+                                             ; FIXME https://github.com/nextdoc/sketch/issues/8
                                              (update-in acc
                                                         [(keyword (str (name location) "-" (name actor))) :store]
                                                         (fnil conj #{}) state))

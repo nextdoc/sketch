@@ -71,6 +71,7 @@
                               (#'generate! model-path registry-path)
                               (log/info "Sketch registry sync complete!")
                               (catch Throwable t
+                                (.printStackTrace t)
                                 (log/error t)
                                 (log/warn "Sketch registry sync failed!"))))
                           ctx)}]

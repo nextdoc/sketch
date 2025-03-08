@@ -196,6 +196,12 @@
           (keep (fn [[from-port-id to-port-id {:keys [request event]}]]
                   (let [[_ from-actor] (lookup-port from-port-id)
                         [location to-actor] (lookup-port to-port-id)]
+                    (when (some nil? [from-actor location to-actor])
+                      (throw (ex-info "missing model ref for data flow event" {:request    request
+                                                                               :event      event
+                                                                               :from-actor from-actor
+                                                                               :location   location
+                                                                               :to-actor   to-actor})))
                     (when (actor-filter from-actor to-actor)
                       (keyword (str (name location) "-" (name to-actor))
                                (or (some-> request name)

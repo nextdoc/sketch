@@ -1,0 +1,10 @@
+cache-prompts: true
+auto-commits: false
+watch-files: true
+
+# test-cmd: bb count-text-elements
+#auto-test: true
+#test: false
+
+read:
+#  - examples/mobile_weather_app/weather_registry.cljc

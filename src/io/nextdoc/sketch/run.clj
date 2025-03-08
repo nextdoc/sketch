@@ -28,19 +28,14 @@
     (as-lookup [this] (state/as-lookup impl))
     state/StateDatabase
     (get-record [_ entity-type id]
-      ; TODO check entity type allowed in meta
       (state/get-record impl entity-type id))
     (query [_ entity-type predicate]
-      ; TODO check entity type allowed in meta
       (state/query impl entity-type predicate))
     (put-record! [_ entity-type record]
-      ; TODO check....
-      (state/put-record! impl entity-type record)
-      )
+      ; TODO check entity type allowed in meta
+      (state/put-record! impl entity-type record))
     (delete-record! [_ entity-type id]
-      ; TODO check....
-      (state/delete-record! impl entity-type id)
-      )
+      (state/delete-record! impl entity-type id))
     (clear! [_]
       (state/clear! impl))
     (as-map [_]

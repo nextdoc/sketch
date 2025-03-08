@@ -23,7 +23,7 @@ If you do, try this:
 - Change some of the data that is persisted to storage and see that state is validated by the test
 - Comment out some of the test steps and see the diagram change when the test is run
 - Start the model watcher (top of test)
-  - uncomment the :delete-me request in weather-model and see the changes in weather-registry.cljc
+    - uncomment the :delete-me request in weather-model and see the changes in weather-registry.cljc
 
 ### Why
 
@@ -104,9 +104,43 @@ If you do, try this:
 ## Status
 
 - Early alpha: likely to change but we'll try to avoid breaking changes to the test api
+- Used effectively in multiple projects at Nextdoc and other companies
 - Diagram app is a POC, has some rendering/UX issues on iOS
 - Very few tests
 - Sparse documentation
-- Limited time to work on it until [Nextdoc.io](https://nextdoc.io/) has more bandwidth
+- Limited time to work on it until [Nextdoc](https://nextdoc.io/) has more bandwidth
 
-Please be patient. We know there is work to be done.
+There is lots of room for improvement...
+
+## Roadmap
+
+- Onboarding
+    - bb setup task: creates a minimal set of files that runs a test
+    - bb create test task: create a new test based on existing config and possibly an existing test
+- Improved documentation
+    - for developers
+    - for AI context https://github.com/nextdoc/sketch/issues/13
+- AI integration
+    - targets
+        - MCP https://github.com/nextdoc/sketch/issues/12
+        - Aider https://github.com/nextdoc/sketch/issues/13
+- Watcher
+    - less intrusive schema updates https://github.com/nextdoc/sketch/issues/3
+- Tests: need more
+- Diagram tool features
+    - partial test success render https://github.com/nextdoc/sketch/issues/10
+    - foreign key state rendering https://github.com/nextdoc/sketch/issues/11
+    - improve svg/html container, scaling https://github.com/nextdoc/sketch/issues/14
+    - improve diff highlights https://github.com/nextdoc/sketch/issues/7
+    - improve following steps state control https://github.com/nextdoc/sketch/issues/9
+
+## How can you help?
+
+- Look at the [issue list](https://github.com/nextdoc/sketch/issues) and contribute a fix
+    - please start with a comment in the issue to confirm your interest and plan
+- If you find Sketch valuable, we'd very much
+  appreciate [a sponsorship contribution](https://github.com/sponsors/nextdoc)
+- Use the tool in your projects:
+    - show the diagrams to your team members
+    - mention Sketch was created by [Nextdoc](https://nextdoc.io/)
+- Share your feedback on the socials
