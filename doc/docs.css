@@ -56,3 +56,15 @@ a:hover {
     text-decoration: underline;
 }
 
+.diagram-image {
+    border: 4px solid white;
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.8);
+    max-width: 1000px;
+    transition: all 0.3s ease;
+}
+
+.diagram-image:hover {
+    border: 4px solid #8493fc;
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.8);
+}
+

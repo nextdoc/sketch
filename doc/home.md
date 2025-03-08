@@ -16,7 +16,7 @@ The actors and the step labels are clickable will display the state changes made
 
 <a href="https://nextdoc.github.io/sketch/mobile-weather-app/happy-path-test.html">
   <!-- TODO switch sha to tag after next release -->
-  <img src="https://cdn.jsdelivr.net/gh/nextdoc/sketch@06f553dc5b50306719e33f04f052384297d323c1/doc/example1.png" alt="Example diagram showing network interactions" style="border: 10px solid white; max-width: 1000px; box-shadow: 0 0 15px rgba(255, 255, 255, 0.8);">
+  <img src="https://cdn.jsdelivr.net/gh/nextdoc/sketch@06f553dc5b50306719e33f04f052384297d323c1/doc/example1.png" alt="Example diagram showing network interactions" class="diagram-image">
 </a>
 
 This provides a very effective thinking / storytelling / discussion tool.
