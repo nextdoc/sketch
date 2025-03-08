@@ -9,12 +9,14 @@ components.
 
 ### Demo
 
-When you run [this test](https://github.com/nextdoc/sketch/blob/main/examples/mobile_weather_app/happy_path_test.clj) it generates the static HTML file below.
+When you run [this test](https://github.com/nextdoc/sketch/blob/main/examples/mobile_weather_app/happy_path_test.clj) it
+generates the static HTML file below.
 
 The actors and the step labels are clickable will display the state changes made each actor at any step.
 
 <a href="https://nextdoc.github.io/sketch/mobile-weather-app/happy-path-test.html">
-  <img src="example1.png" alt="Example diagram showing network interactions" style="border: 10px solid white; max-width: 1000px; box-shadow: 0 0 15px rgba(255, 255, 255, 0.8);">
+  <!-- TODO switch sha to tag after next release -->
+  <img src="https://cdn.jsdelivr.net/gh/nextdoc/sketch@06f553dc5b50306719e33f04f052384297d323c1/doc/example1.png" alt="Example diagram showing network interactions" style="border: 10px solid white; max-width: 1000px; box-shadow: 0 0 15px rgba(255, 255, 255, 0.8);">
 </a>
 
 This provides a very effective thinking / storytelling / discussion tool.
@@ -51,7 +53,7 @@ If you do, try this:
 - tools
     - bootstrap Malli schema
         - manually populate schemas maintaining naming standard
-    - Reference existing Malli schema from the generated schemas 
+    - Reference existing Malli schema from the generated schemas
     - sync Malli schema as db changes
         - file watcher
         - rewrite-clj diffs schemas and adds missing keywords in alphabetical order
@@ -140,7 +142,7 @@ If you do, try this:
 
 - Answer questions in Slack
 - Look at the [issue list](https://github.com/nextdoc/sketch/issues) and contribute a fix
-   - please start with a comment in the issue to confirm your interest and plan
+    - please start with a comment in the issue to confirm your interest and plan
 - If you find Sketch valuable, we'd very much
   appreciate [a sponsorship contribution](https://github.com/sponsors/nextdoc)
 - Use the tool in your projects:
