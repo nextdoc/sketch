@@ -7,9 +7,7 @@ components.
 
 [Github Repo](https://github.com/nextdoc/sketch)
 
-### Demo
-
-When you run [this test](https://github.com/nextdoc/sketch/blob/main/examples/mobile_weather_app/happy_path_test.clj) it
+**Demo:** When you run [this test](https://github.com/nextdoc/sketch/blob/main/examples/mobile_weather_app/happy_path_test.clj) it
 generates the static HTML file below.
 
 The actors and the step labels are clickable. They will display the state changes made each actor at any step.
@@ -30,7 +28,7 @@ If you do, try this:
 - Start the model watcher (top of test)
     - uncomment the :delete-me request in weather-model and see the changes in weather-registry.cljc
 
-### Why
+## Why
 
 **Complex Reasoning:** Understanding and predicting the behavior of distributed components is inherently difficult.
 Factors such as network latency, partial failures, and concurrency issues can lead to unpredictable behavior.
@@ -51,7 +49,7 @@ issues between services.
 system behavior. However, typically only developers use them to understand the system. There are many other people who
 would benefit from understanding and collaborating in the system design.
 
-### How
+## How
 
 There are two data flows provided by Sketch that are useful:
 
