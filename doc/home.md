@@ -19,7 +19,7 @@ The actors and the step labels are clickable. They will display the state change
   <img src="https://cdn.jsdelivr.net/gh/nextdoc/sketch@06f553dc5b50306719e33f04f052384297d323c1/doc/example1.png" alt="Example diagram showing network interactions" class="diagram-image">
 </a>
 
-This provides a very effective thinking / storytelling / discussion tool.
+This provides an effective thinking / storytelling / discussion tool.
 
 You can clone the repo and run it yourself locally if you want to play with it.
 If you do, try this:
@@ -33,32 +33,33 @@ If you do, try this:
 ### Why
 
 **Complex Reasoning:** Understanding and predicting the behavior of distributed components is inherently difficult.
-Factors such as network latency, partial failures, and concurrency issues can lead to unpredictable system behavior.
+Factors such as network latency, partial failures, and concurrency issues can lead to unpredictable behavior.
 Integration tests, while often crafted as sequential narratives to document system behavior, can become lengthy and
-complex. This complexity makes it challenging for developers to maintain a comprehensive mental model of the entire
-test, underscoring the need for high-level summaries or bird's-eye views to effectively comprehend and manage these
+complex. This complexity makes it challenging for developers to maintain a mental model of the entire
+test, underscoring the need for a high-level view to effectively comprehend and manage these
 tests.
 
 **Collaborative Design Difficulties:** Designing distributed systems requires effective collaboration among team
-members. However, differences in cultural backgrounds, communication styles, and time zones can hinder seamless
+members. Differences in cultural backgrounds and communication styles can hinder
 collaboration, leading to misunderstandings and inefficiencies.
 
 **Schema Naming Drift:** Maintaining consistent naming conventions across distributed components is challenging. Over
-time, schema keyword naming drift can occur, leading to misinterpretations and integration issues between services.
+time, schema keyword naming drift can occur, leading to greater cognitive load, misinterpretations and integration
+issues between services.
 
 **Opaque Integration Tests:** Integration tests are often crafted as sequential narratives that effectively document
-system behavior. However, their technical nature renders them accessible primarily to developers, limiting their utility
-for other stakeholders.
+system behavior. However, typically only developers use them to understand the system. There are many other people who
+would benefit from understanding and collaborating in the system design.
 
 ### How
 
 There are two data flows provided by Sketch that are useful:
 
-### Malli Schema Generation
+#### Malli Schema Generation
 
 The core of the system design is described by
 an [EDN/Aero file](https://github.com/nextdoc/sketch/blob/main/examples/mobile_weather_app/weather-model.edn)
-See io.nextdoc.sketch.core/model-registry to understand the shape. 
+See io.nextdoc.sketch.core/model-registry to understand the shape.
 
 You can start a file watcher on this which will emit a Malli registry to
 a [namespace of your choice](https://github.com/nextdoc/sketch/blob/main/examples/mobile_weather_app/weather_registry.cljc#L5)
@@ -69,52 +70,54 @@ You can build out your domain directly in the generated registry or
 reference [other domain registries](https://github.com/nextdoc/sketch/blob/main/examples/mobile_weather_app/weather_registry.cljc#L40)
 that you merge together.
 
-### Interactive static HTML review tool
+#### Interactive static HTML review tool
 
 Each Sketch test generates its own static HTML file which is used to review the sequence of steps.
 
 Click on the image above to experiment with the interactivity.
 
-- What tools are provided:
-    - bootstrap Malli schema
-        - manually populate schemas maintaining naming standard
-    - Reference existing Malli schema from the generated schemas
-    - sync Malli schema as db changes
-        - file watcher
-        - rewrite-clj diffs schemas and adds missing keywords in alphabetical order
-    - validate
-        - schema names stick to naming standard
-        - schema keywords follow idioms e.g. kebab-case everywhere
-        - decoders (h/t Malli) for non-clojure keys
-    - generate diagrams
-        - data flow sequence
-        - distributed state changes after each data flow event
-    - generate non-clojure code
-        - Typescript/Zod TODO
-        - Apex TODO
-        - Malli
-            - JSON Schema
-            - Open API
-- testing
-    - composable steps tell the story of data flow
-        - add network events as stories grow
-    - composable chapters (step sequences)
-    - state and data flow automatically checked using Malli schemas
-    - state data flow for non-clojure systems use local idioms e.g. camelCase for JSON
-    - assertions can be made about state anywhere e.g. check race conditions
-    - create fns using domain data
-        - add (optional) fn schemas to avoid data bugs
-        - informs implementations later during build
-    - verify decoders adapt data everywhere
-    - artifacts
-        - generated diagrams
-            - sequence diagrams for each story/chapter/step
-        - actor fns
-        - decoders
-    - run on jvm or node using cljc
-        - jvm Malli DX tools better
-    - exceptions
-        - Cursive Seeker link to failing step
+## Source Tools 
+
+- bootstrap Malli schema
+    - manually populate schemas maintaining naming standard
+- Reference existing Malli schema from the generated schemas
+- sync Malli schema as db changes
+    - file watcher
+    - rewrite-clj diffs schemas and adds missing keywords in alphabetical order
+    - Warns when generated registry keywords are no longer in sync with the model
+- validate
+    - schema names stick to naming standard
+    - schema keywords follow idioms e.g. kebab-case everywhere
+    - decoders (h/t Malli) for non-clojure keys
+- generate non-clojure code
+    - Typescript/Zod TODO
+    - Apex TODO
+    - Malli
+        - JSON Schema
+        - Open API
+
+## Testing Tools
+
+- composable steps tell the story of data flow
+    - add network events as stories grow
+- composable chapters (step sequences)
+- state and data flow automatically checked using Malli schemas
+- state data flow for non-clojure systems use local idioms e.g. camelCase for JSON
+- assertions can be made about state anywhere e.g. check race conditions
+- create fns using domain data
+    - add (optional) fn schemas to avoid data bugs
+    - informs implementations later during build
+- verify decoders adapt data everywhere
+- artifacts
+    - generated diagrams
+        - sequence diagrams for each story/chapter/step
+    - actor fns
+    - decoders
+- run on jvm or node using cljc
+    - jvm Malli DX tools better
+- exceptions
+    - Cursive Seeker link to failing step
+
 
 ## Benefits
 
