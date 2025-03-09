@@ -11,7 +11,7 @@
                             (fs/create-dirs output-dir)
                             (doseq [file ["home.md"]]
                               (let [markdown-content (slurp (str input-dir "/" file))
-                                    body-content (md/md-to-html-string markdown-content)
+                                    body-content (md/md-to-html-string markdown-content :heading-anchors true)
                                     css-file "docs.css"
                                     html-content (html5
                                                    [:head
