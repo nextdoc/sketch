@@ -1,4 +1,5 @@
-{:locations       {:iphone       {:id     :iphone
+{; :locations are all the actors in the network
+ :locations       {:iphone       {:id     :iphone
                                   :name   "Mobile Device"
                                   :state  {:core-data {:id       :core-data
                                                        :type     :database
@@ -29,13 +30,18 @@
                                                  :name  "One Call API v3.0"
                                                  :ports {:one-call3 {:id   :one-call3
                                                                      :name "One Call Server"}}}}}}
+
+ ; :domain-entities are all entities persisted in states somewhere in the network
  :domain-entities {:env  {:id   :env
                           :name "Environment variables"}
                    :user {:id   :user
                           :name "User of weather api"}
                    :city {:id   :city
                           :name "Description of city and location"}}
- :data-flow       [; requests
+
+ ; :data-flow is all permitted communications between actors in the network.
+ :data-flow       [
+                   ; requests (bi-directional)
                    {:description "App loads user information"
                     :from        #ref [:locations :iphone :actors :weather-app :ports :http-client]
                     :to          #ref [:locations :aws :actors :lambda :ports :handler]
@@ -55,7 +61,7 @@
                       :to          #ref [:locations :aws :actors :lambda :ports :handler]
                       :request     :delete-me}
 
-                   ; push events
+                   ; push events (one direction)
                    {:description "Server notifies app that weather in currently visible city changed"
                     :from        #ref [:locations :aws :actors :lambda :ports :handler]
                     :to          #ref [:locations :iphone :actors :weather-app :ports :http-client]

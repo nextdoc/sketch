@@ -89,7 +89,7 @@
   (merge
     (m/default-schemas)
     (mu/schemas)
-    {:domain    [:map
+    {:domain    [:map {:description "Top level of model"}
                  [:locations [:and
                               [:map-of :keyword :location]
                               [:fn map?]
@@ -103,26 +103,29 @@
                                  (empty? (duplicate-port-ids locations)))]]]
                  [:domain-entities [:map-of :keyword :named]]
                  [:data-flow [:vector :flow]]]
-     :location  [:and :named
+     :location  [:and {:description "A host environment where an actor can execute"}
+                 :named
                  [:map
                   [:state [:map-of :keyword :state]]
                   [:actors [:map-of :keyword :actor]]]]
-     :state     [:and :named
+     :state     [:and {:description "A persistent store of state e.g. database, cache, etc"}
+                 :named
                  [:map
                   [:type [:enum :associative :database]]
                   [:entities {:optional true} [:set :keyword]]]]
-     :actor     [:and :named
+     :actor     [:and {:description "A process running at a location that can handle and emit data"}
+                 :named
                  [:map
-                  [:ports [:and
+                  [:ports [:and {:description "A collection of communication ports"}
                            ; TODO port ids must be unique
                            [:map-of :keyword :named]
                            :id-map]]]]
-     :flow-edge [:map
+     :flow-edge [:map {:description "A connection between two ports"}
                  [:description :string]
                  ; refs below validated by aero deref. return nil if not valid
                  [:from :named]
                  [:to :named]]
-     :flow      [:or
+     :flow      [:or {:description "a one-direction or bi-directional connection between two ports"}
                  [:and :flow-edge
                   [:map
                    [:request :keyword]]]
@@ -133,7 +136,7 @@
                                   (str "id in map doesn't match parent map" (mismatched-ids value)))}
                  (fn [map-entries]
                    (empty? (mismatched-ids map-entries)))]
-     :named     [:map
+     :named     [:map {:description "An entity in the model which needs identity"}
                  [:id :keyword]
                  [:name :string]]}))
 

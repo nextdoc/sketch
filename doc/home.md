@@ -12,7 +12,7 @@ components.
 When you run [this test](https://github.com/nextdoc/sketch/blob/main/examples/mobile_weather_app/happy_path_test.clj) it
 generates the static HTML file below.
 
-The actors and the step labels are clickable will display the state changes made each actor at any step.
+The actors and the step labels are clickable. They will display the state changes made each actor at any step.
 
 <a href="https://nextdoc.github.io/sketch/mobile-weather-app/happy-path-test.html">
   <!-- TODO switch sha to tag after next release -->
@@ -32,25 +32,50 @@ If you do, try this:
 
 ### Why
 
-- network systems are hard to reason about before built
-- can't test distributed assertions until built
-- hard to uncover design bugs like race conditions, cache invalidation, etc
-- distributed systems grow in complexity quickly
-- hard to think about high level system
-- initial naming is easy but also easy to diverge from initial naming standard
-- hard to communicate designs before built
+**Complex Reasoning:** Understanding and predicting the behavior of distributed components is inherently difficult.
+Factors such as network latency, partial failures, and concurrency issues can lead to unpredictable system behavior.
+Integration tests, while often crafted as sequential narratives to document system behavior, can become lengthy and
+complex. This complexity makes it challenging for developers to maintain a comprehensive mental model of the entire
+test, underscoring the need for high-level summaries or bird's-eye views to effectively comprehend and manage these
+tests.
+
+**Collaborative Design Difficulties:** Designing distributed systems requires effective collaboration among team
+members. However, differences in cultural backgrounds, communication styles, and time zones can hinder seamless
+collaboration, leading to misunderstandings and inefficiencies.
+
+**Schema Naming Drift:** Maintaining consistent naming conventions across distributed components is challenging. Over
+time, schema keyword naming drift can occur, leading to misinterpretations and integration issues between services.
+
+**Opaque Integration Tests:** Integration tests are often crafted as sequential narratives that effectively document
+system behavior. However, their technical nature renders them accessible primarily to developers, limiting their utility
+for other stakeholders.
 
 ### How
 
-- start with EDN declaration of system shape
-    - actors
-    - state
-    - domain entities
-    - data flow events
-        - request/response
-        - unidirectional (web-socket or Queue)
-    - schema key naming: source, target or event focused naming TODO
-- tools
+There are two data flows provided by Sketch that are useful:
+
+### Malli Schema Generation
+
+The core of the system design is described by
+an [EDN/Aero file](https://github.com/nextdoc/sketch/blob/main/examples/mobile_weather_app/weather-model.edn)
+See io.nextdoc.sketch.core/model-registry to understand the shape. 
+
+You can start a file watcher on this which will emit a Malli registry to
+a [namespace of your choice](https://github.com/nextdoc/sketch/blob/main/examples/mobile_weather_app/weather_registry.cljc#L5)
+
+clj-rewrite is used to maintain the **generated** form in this file with alphabetical order.
+
+You can build out your domain directly in the generated registry or
+reference [other domain registries](https://github.com/nextdoc/sketch/blob/main/examples/mobile_weather_app/weather_registry.cljc#L40)
+that you merge together.
+
+### Interactive static HTML review tool
+
+Each Sketch test generates its own static HTML file which is used to review the sequence of steps.
+
+Click on the image above to experiment with the interactivity.
+
+- What tools are provided:
     - bootstrap Malli schema
         - manually populate schemas maintaining naming standard
     - Reference existing Malli schema from the generated schemas
@@ -109,9 +134,9 @@ If you do, try this:
 
 ## Status
 
-- Early alpha: likely to change but we'll try to avoid breaking changes to the test api
+- Early alpha: likely to change but we'll strive to avoid breaking changes to the test api
 - Used effectively in multiple projects at Nextdoc and other companies
-- Diagram app is a POC, has some rendering/UX issues on iOS
+- Diagram app is a proof of concept, has some rendering/UX issues on iOS
 - Very few tests
 - Sparse documentation
 - Limited time to work on it until [Nextdoc](https://nextdoc.io/) has more bandwidth
@@ -130,6 +155,7 @@ If you do, try this:
         - [Aider](https://github.com/nextdoc/sketch/issues/13)
 - Watcher
     - [better formatting for schema updates](https://github.com/nextdoc/sketch/issues/3)
+    - configurable keyword naming strategy
 - Tests: need more
 - Diagram tool features
     - [partial test success render](https://github.com/nextdoc/sketch/issues/10)
