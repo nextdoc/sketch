@@ -31,7 +31,7 @@ If you do, try this:
 - Start the model watcher (top of test)
     - uncomment the :delete-me request in weather-model and see the changes in weather-registry.cljc
 
-## Why
+## Why: what problems does this address?
 
 **Complex Reasoning:** Understanding and predicting the behavior of distributed components is difficult.
 Integration tests describing systems often become large and complex.
@@ -49,7 +49,7 @@ Some projects have mixtures of keyword styles in domain functions which can lead
 system behavior. Typically only developers use them to understand the system. There are many other people who
 could benefit from that understanding. With that knowledge, they can contribute more to the design process.
 
-## How
+## How: what do you get?
 
 There are two data flows provided by Sketch that are useful:
 
@@ -76,7 +76,7 @@ Each Sketch test generates its own static HTML file which is used to review the 
 
 Click on the image above to experiment with the interactivity.
 
-## Source Tools
+## Source code benefits
 
 - Bootstrap Malli schema
     - manually populate schemas maintaining naming standard
@@ -91,15 +91,20 @@ Click on the image above to experiment with the interactivity.
         - JSON Schema
         - Open API
 
-## Testing Tools
+## Testing: tools you can use 
 
+- a lightweight API for simulating actors, state and data flow
 - composable steps tell the story of data flow
     - add network events as stories grow
+- open or closed schemas
+  - for state
+  - for data flow
 - composable chapters (step sequences)
 - state and data flow automatically checked using Malli schemas
-- state data flow for non-clojure systems use local idioms e.g. camelCase for JSON
+- state data flow for non-clojure systems local idioms e.g. fixtures with Swagger camelCase data
 - assertions can be made about state anywhere e.g. check race conditions
-- custom Timbre Logger provides enhances test logs
+  - before and after hooks available in each step
+- custom Timbre Logger makes test output easier to scan
 - test state stores are abstracted
     - the default uses an atom for persistence.
     - can be replaced using any database that works in the runtime
