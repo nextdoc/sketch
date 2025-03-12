@@ -3,6 +3,7 @@
             [com.rpl.specter :refer [ALL MAP-KEYS MAP-VALS collect collect-one multi-path select select-first transform]]
             [editscript.core :as edit]
             [goog.string :as gstring]
+            [sc.api]
             [goog.string.format]
             [reagent.core :as r]
             [reagent.dom.client :as rdc]))
@@ -74,34 +75,36 @@
 
 (defn graphviz-component [_]
   (let [container-ref (atom nil)
-        d3-element (fn [selector] (-> (.select js/d3 @container-ref)
+        d3-element (fn [selector] (-> js/d3
+                                      (.select @container-ref)
                                       (.select selector)))
         with-size-control (fn []
                             ; set initial attrs to keep/scale svg inside parent
                             (-> (d3-element "svg")
-                                (.attr "viewBox" "0 0 100 100")
                                 (.attr "preserveAspectRatio" "xMidYMid meet")))
-        with-height-transition (fn [n]
-                                 (-> (.select js/d3 @container-ref)
-                                     (.transition)
-                                     (.duration 500)
-                                     (.style "height" (str (* n 10) "vh"))))]
+        with-container-height-transition (fn [n]
+                                           (-> js/d3
+                                               (.select @container-ref)
+                                               (.select ".diagram")
+                                               (.transition)
+                                               (.duration 500)
+                                               (.style "height" (str (* n 8) "vh"))))]
     (r/create-class
       {:display-name "Graphviz"
        :component-did-mount
        (fn [this]
-         (let [{:keys [dot table-count]} (r/props this)]
+         (let [{:keys [dot row-count]} (r/props this)]
            (when @container-ref
-             (with-height-transition table-count)
-             (-> (d3-element "#diagram")
+             (with-container-height-transition row-count)
+             (-> (d3-element ".diagram")
                  (.graphviz)
                  (.renderDot dot with-size-control)))))
        :component-did-update
        (fn [this _ _]
          (when @container-ref
-           (let [{:keys [dot table-count]} (r/props this)]
-             (with-height-transition table-count)
-             (-> (d3-element "#diagram")
+           (let [{:keys [dot row-count]} (r/props this)]
+             (with-container-height-transition row-count)
+             (-> (d3-element ".diagram")
                  (.graphviz)
                  (.renderDot dot)
                  (.transition (fn [] (-> js/d3 (.transition) (.duration 500))))))))
@@ -109,7 +112,7 @@
        ; container div and diagram svg are d3 animated in parallel
        ; so rendered as separate nodes to avoid bugs
        (fn [_] [:div.graphviz {:ref (fn [el] (reset! container-ref el))}
-                [:div#diagram]])})))
+                [:div.diagram]])})))
 
 (defn toggle-actor!
   [actor-name]
@@ -268,6 +271,9 @@
                      [:div store]
                      [graphviz-component
                       {:data        data
+                       :row-count   (case (store-types store)
+                                      :database (->> (vals data) (map count) (reduce +))
+                                      :associative (count data))
                        :table-count (case (store-types store)
                                       :database (count data)
                                       :associative (count (keys data)))

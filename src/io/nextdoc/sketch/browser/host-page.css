@@ -2,6 +2,10 @@
     box-sizing: border-box;
     margin: 0;
     padding: 0;
+    /* Suppress text selection.*/
+    -webkit-user-select: none; /* Safari */
+    -ms-user-select: none;     /* Internet Explorer and Edge */
+    user-select: none;         /* Standard syntax */
 }
 
 body {
@@ -73,7 +77,16 @@ svg text.actor, svg text.messageText {
     display: flex;
 }
 
-.graphviz svg {
+.graphviz .diagram {
+    position: relative;
+    width: 100vw;
+    overflow: hidden;
+}
+
+.graphviz .diagram svg {
+    position: absolute;
+    top: 0;
+    left: 0;
     width: 100%;
-    height: auto;
+    height: 100%;
 }
