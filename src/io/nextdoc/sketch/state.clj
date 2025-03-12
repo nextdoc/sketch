@@ -53,7 +53,13 @@
       (query [_ entity-type predicate]
         (select [entity-type ALL predicate] @database))
       (put-record! [_ entity-type record]
-        (swap! database update entity-type (fnil conj #{}) record))
+        (swap! database update entity-type
+               (fn upsert-by-id [db]
+                 (conj
+                   (->> db
+                        (remove (comp #{(:id record)} :id))
+                        (set))
+                   record))))
       (delete-record! [_ entity-type id]
         (swap! database update entity-type (fn [db]
                                              (->> db (remove (comp #{id} :id)) set))))
