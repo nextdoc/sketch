@@ -7,10 +7,13 @@ components.
 
 [Github Repo](https://github.com/nextdoc/sketch)
 
-**Demo:** When you run [this test](https://github.com/nextdoc/sketch/blob/main/examples/mobile_weather_app/happy_path_test.clj) it
+**Demo:** when you
+run [this test](https://github.com/nextdoc/sketch/blob/main/examples/mobile_weather_app/happy_path_test.clj) it
 generates the static HTML file below.
 
 The actors and the step labels are clickable. They will display the state changes made each actor at any step.
+
+The state diagrams are zoomable using your mouse wheel and can be dragged.
 
 <a href="https://nextdoc.github.io/sketch/mobile-weather-app/happy-path-test.html">
   <!-- TODO switch sha to tag after next release -->
@@ -30,24 +33,21 @@ If you do, try this:
 
 ## Why
 
-**Complex Reasoning:** Understanding and predicting the behavior of distributed components is inherently difficult.
-Factors such as network latency, partial failures, and concurrency issues can lead to unpredictable behavior.
-Integration tests, while often crafted as sequential narratives to document system behavior, can become lengthy and
-complex. This complexity makes it challenging for developers to maintain a mental model of the entire
-test, underscoring the need for a high-level view to effectively comprehend and manage these
-tests.
+**Complex Reasoning:** Understanding and predicting the behavior of distributed components is difficult.
+Integration tests describing systems often become large and complex.
+This complexity makes it difficult for developers to maintain a complete mental model of the entire test.
 
 **Collaborative Design Difficulties:** Designing distributed systems requires effective collaboration among team
-members. Differences in cultural backgrounds and communication styles can hinder
-collaboration, leading to misunderstandings and inefficiencies.
+members. Many external factors increase the difficulty of sharing design knowledge.
 
 **Schema Naming Drift:** Maintaining consistent naming conventions across distributed components is challenging. Over
 time, schema keyword naming drift can occur, leading to greater cognitive load, misinterpretations and integration
 issues between services.
+Some projects have mixtures of keyword styles in domain functions which can lead to confusion.
 
-**Opaque Integration Tests:** Integration tests are often crafted as sequential narratives that effectively document
-system behavior. However, typically only developers use them to understand the system. There are many other people who
-would benefit from understanding and collaborating in the system design.
+**Opaque Integration Tests:** Integration tests are often crafted as sequential narratives that describe
+system behavior. Typically only developers use them to understand the system. There are many other people who
+could benefit from that understanding. With that knowledge, they can contribute more to the design process.
 
 ## How
 
@@ -64,6 +64,8 @@ a [namespace of your choice](https://github.com/nextdoc/sketch/blob/main/example
 
 clj-rewrite is used to maintain the **generated** form in this file with alphabetical order.
 
+The watcher warns when generated registry keywords are no longer in sync with the model.
+
 You can build out your domain directly in the generated registry or
 reference [other domain registries](https://github.com/nextdoc/sketch/blob/main/examples/mobile_weather_app/weather_registry.cljc#L40)
 that you merge together.
@@ -74,19 +76,14 @@ Each Sketch test generates its own static HTML file which is used to review the 
 
 Click on the image above to experiment with the interactivity.
 
-## Source Tools 
+## Source Tools
 
-- bootstrap Malli schema
+- Bootstrap Malli schema
     - manually populate schemas maintaining naming standard
-- Reference existing Malli schema from the generated schemas
-- sync Malli schema as db changes
-    - file watcher
-    - rewrite-clj diffs schemas and adds missing keywords in alphabetical order
-    - Warns when generated registry keywords are no longer in sync with the model
-- validate
-    - schema names stick to naming standard
-    - schema keywords follow idioms e.g. kebab-case everywhere
-    - decoders (h/t Malli) for non-clojure keys
+- Build pure domain functions at design time
+    - Any domain logic that affects network design can be built at design time
+    - for production actors written in Clojure, these functions are reusable
+    - For non-Clojure actors, A.I. can port the functions to most languages quickly
 - generate non-clojure code
     - Typescript/Zod TODO
     - Apex TODO
@@ -102,20 +99,19 @@ Click on the image above to experiment with the interactivity.
 - state and data flow automatically checked using Malli schemas
 - state data flow for non-clojure systems use local idioms e.g. camelCase for JSON
 - assertions can be made about state anywhere e.g. check race conditions
+- custom Timbre Logger provides enhances test logs
+- test state stores are abstracted
+    - the default uses an atom for persistence.
+    - can be replaced using any database that works in the runtime
 - create fns using domain data
     - add (optional) fn schemas to avoid data bugs
     - informs implementations later during build
-- verify decoders adapt data everywhere
-- artifacts
-    - generated diagrams
-        - sequence diagrams for each story/chapter/step
-    - actor fns
-    - decoders
+- verify decoders
+    - add recorded fixtures from your APIs
+    - use decoders in the steps to translate them back into idiomatic data
 - run on jvm or node using cljc
-    - jvm Malli DX tools better
 - exceptions
     - Cursive Seeker link to failing step
-
 
 ## Benefits
 
@@ -124,13 +120,14 @@ Click on the image above to experiment with the interactivity.
 - enforced naming standards means easier to remember
     - data flow events and names
     - schema names
-- kebab-case keywords in all modelling and tests
+- confidently use idiomatic (kebab-case) keywords in all domain functions
     - less mistakes forgetting which key style is used where
 - Malli schemas for state and data flow ready for implementations
 - full inventory of network communications
 - shift left on design bugs
 - communicate with diagrams before initial build
-- avoid naming standard drift
+- avoid schema naming standard drift
+- improves handoff between teams.
 - generate non-clojure code if required
 
 ## Status
@@ -149,7 +146,9 @@ Click on the image above to experiment with the interactivity.
     - bb create test task: create a new test based on existing config and possibly an existing test
 - Improved documentation
     - for developers
-    - for [AI context](https://github.com/nextdoc/sketch/issues/13)
+    - examples
+        - [HTMX DOM state and javascript local dataflow](https://github.com/nextdoc/sketch/issues/17)
+        - [Alternative State Store: Datomic](https://github.com/nextdoc/sketch/issues/18)
 - AI integration
     - targets
         - [MCP](https://github.com/nextdoc/sketch/issues/12)
@@ -157,6 +156,7 @@ Click on the image above to experiment with the interactivity.
 - Watcher
     - [better formatting for schema updates](https://github.com/nextdoc/sketch/issues/3)
     - configurable keyword naming strategy
+    - [generated decoders](https://github.com/nextdoc/sketch/issues/16)
 - Tests: need more
 - Diagram tool features
     - [partial test success render](https://github.com/nextdoc/sketch/issues/10)
