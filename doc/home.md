@@ -93,18 +93,17 @@ Click on the image above to experiment with the interactivity.
 
 ## Testing: tools you can use 
 
-- a lightweight API for simulating actors, state and data flow
+- a lightweight test API for simulating actors, state and data flow
 - composable steps tell the story of data flow
-    - add network events as stories grow
-- open or closed schemas
-  - for state
-  - for data flow
 - composable chapters (step sequences)
+- open or closed schemas for
+  - state
+  - data flow
 - state and data flow automatically checked using Malli schemas
 - state data flow for non-clojure systems local idioms e.g. fixtures with Swagger camelCase data
 - assertions can be made about state anywhere e.g. check race conditions
   - before and after hooks available in each step
-- custom Timbre Logger makes test output easier to scan
+- custom Timbre logger makes test output easier to scan
 - test state stores are abstracted
     - the default uses an atom for persistence.
     - can be replaced using any database that works in the runtime
@@ -120,19 +119,19 @@ Click on the image above to experiment with the interactivity.
 
 ## Benefits
 
-- design system before implementation
-- reasoning about total system easier with diagrams (state and sequence)
-- enforced naming standards means easier to remember
-    - data flow events and names
+- design and simulate system before implementation
+- shift left on design bugs
+- reason about total system with diagrams (state and sequence)
+- enforced (generated) schema naming standards are easier to remember
+    - data flow events
     - schema names
+- avoid schema naming standard drift
 - confidently use idiomatic (kebab-case) keywords in all domain functions
     - less mistakes forgetting which key style is used where
 - Malli schemas for state and data flow ready for implementations
 - full inventory of network communications
-- shift left on design bugs
 - communicate with diagrams before initial build
-- avoid schema naming standard drift
-- improves handoff between teams.
+- improve handoff between teams
 - generate non-clojure code if required
 
 ## Status
