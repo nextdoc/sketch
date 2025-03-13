@@ -3,7 +3,6 @@
             [com.rpl.specter :refer [ALL MAP-KEYS MAP-VALS collect collect-one multi-path select select-first transform]]
             [editscript.core :as edit]
             [goog.string :as gstring]
-            [sc.api]
             [goog.string.format]
             [reagent.core :as r]
             [reagent.dom.client :as rdc]))
@@ -73,12 +72,14 @@
        "  >];\n"
        "}"))
 
+(def animation-duration 500)
+
 (defn graphviz-component [_]
   (let [container-ref (atom nil)
         d3-element (fn [selector] (-> js/d3
                                       (.select @container-ref)
                                       (.select selector)))
-        with-size-control (fn []
+        with-aspect-ratio (fn []
                             ; set initial attrs to keep/scale svg inside parent
                             (-> (d3-element "svg")
                                 (.attr "preserveAspectRatio" "xMidYMid meet")))
@@ -86,8 +87,8 @@
                                            (-> js/d3
                                                (.select @container-ref)
                                                (.select ".diagram")
-                                               (.transition)
-                                               (.duration 500)
+                                               (.transition "container-resize")
+                                               (.duration animation-duration)
                                                (.style "height" (str (* n 8) "vh"))))]
     (r/create-class
       {:display-name "Graphviz"
@@ -98,16 +99,22 @@
              (with-container-height-transition row-count)
              (-> (d3-element ".diagram")
                  (.graphviz)
-                 (.renderDot dot with-size-control)))))
+                 (.renderDot dot with-aspect-ratio)))))
        :component-did-update
        (fn [this _ _]
          (when @container-ref
-           (let [{:keys [dot row-count]} (r/props this)]
+           ; https://github.com/magjac/d3-graphviz?tab=readme-ov-file#creating-transitions
+           (let [{:keys [dot row-count]} (r/props this)
+                 ; Use a named transition to ensure that only a single one is running at a time
+                 ; i.e. when quickly changing the slider, any existing transition will be replaced
+                 t (-> (js/d3.transition "resize-diagram")
+                       (.duration animation-duration)
+                       (.ease js/d3.easeLinear))]
              (with-container-height-transition row-count)
              (-> (d3-element ".diagram")
                  (.graphviz)
-                 (.renderDot dot)
-                 (.transition (fn [] (-> js/d3 (.transition) (.duration 500))))))))
+                 (.transition t)
+                 (.renderDot dot)))))
        :reagent-render
        ; container div and diagram svg are d3 animated in parallel
        ; so rendered as separate nodes to avoid bugs
@@ -222,7 +229,7 @@
          [:label "Max Columns"
           [:input {:type      "range"
                    :min       1
-                   :max       10
+                   :max       20
                    :value     (:max-columns settings)
                    :style     {:width "8rem"}
                    :on-change #(swap! app-state assoc-in [:settings :max-columns]
@@ -269,27 +276,28 @@
                                    :padding       "1rem"
                                    :margin-bottom "1rem"}}
                      [:div store]
-                     [graphviz-component
-                      {:data        data
-                       :row-count   (case (store-types store)
-                                      :database (->> (vals data) (map count) (reduce +))
-                                      :associative (count data))
-                       :table-count (case (store-types store)
-                                      :database (count data)
-                                      :associative (count (keys data)))
-                       :dot         (case (store-types store)
-                                      :database
-                                      (-> (reduce-kv (fn store-data [acc entity-type records]
-                                                       (conj acc {:name (name entity-type)
-                                                                  :data (reduce (fn [acc record]
-                                                                                  (assoc acc (:id record) record))
-                                                                                {}
-                                                                                records)}))
-                                                     []
-                                                     data)
-                                          (create-tables-diagram settings))
-                                      :associative
-                                      (create-map-table data))}]])]])]]])
+                     (let [diagram-string (case (store-types store)
+                                            :database
+                                            (-> (reduce-kv (fn store-data [acc entity-type records]
+                                                             (conj acc {:name (name entity-type)
+                                                                        :data (reduce (fn [acc record]
+                                                                                        (assoc acc (:id record) record))
+                                                                                      {}
+                                                                                      records)}))
+                                                           []
+                                                           data)
+                                                (create-tables-diagram settings))
+                                            :associative
+                                            (create-map-table data))]
+                       [graphviz-component
+                        {:data        data
+                         :row-count   (case (store-types store)
+                                        :database (->> (vals data) (map count) (reduce +))
+                                        :associative (count data))
+                         :table-count (case (store-types store)
+                                        :database (count data)
+                                        :associative (count (keys data)))
+                         :dot         diagram-string}])])]])]]])
     (catch :default e
       (js/console.error (ex-message e) (some-> e (ex-data) (clj->js)))
       [:div {:style {:padding "1rem"
