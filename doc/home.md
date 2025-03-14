@@ -89,18 +89,18 @@ Click on the image above to experiment with the interactivity.
     - Malli
         - JSON Schema
 
-## Testing: tools you can use 
+## Testing: tools you can use
 
 - a lightweight test API for simulating actors, state and data flow
 - composable steps tell the story of data flow
 - composable chapters (step sequences)
 - open or closed schemas for
-  - state
-  - data flow
+    - state
+    - data flow
 - state and data flow automatically checked using Malli schemas
 - state data flow for non-clojure systems local idioms e.g. fixtures with Swagger camelCase data
 - assertions can be made about state anywhere e.g. check race conditions
-  - before and after hooks available in each step
+    - before and after hooks available in each step
 - custom Timbre logger makes test output easier to scan
 - test state stores are abstracted
     - the default uses an atom for persistence.
@@ -172,8 +172,7 @@ Click on the image above to experiment with the interactivity.
 - Answer questions in Slack
 - Look at the [issue list](https://github.com/nextdoc/sketch/issues) and contribute a fix
     - please start with a comment in the issue to confirm your interest and plan
-- If you find Sketch valuable, we'd very much
-  appreciate [a sponsorship contribution](https://github.com/sponsors/nextdoc)
+- If you find Sketch valuable, we'd appreciate [a sponsorship contribution](https://github.com/sponsors/nextdoc)
 - Use the tool in your projects:
     - show the diagrams to your team members
     - mention Sketch was created by [Nextdoc](https://nextdoc.io/)
