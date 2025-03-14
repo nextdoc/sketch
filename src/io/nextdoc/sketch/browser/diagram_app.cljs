@@ -3,6 +3,7 @@
             [com.rpl.specter :refer [ALL MAP-KEYS MAP-VALS collect collect-one multi-path select select-first transform]]
             [editscript.core :as edit]
             [goog.string :as gstring]
+            [goog.functions :as gfun]
             [goog.string.format]
             [reagent.core :as r]
             [reagent.dom.client :as rdc]))
@@ -89,7 +90,8 @@
                                                (.select ".diagram")
                                                (.transition "container-resize")
                                                (.duration animation-duration)
-                                               (.style "height" (str (* n 8) "vh"))))]
+                                               (.style "height" (str (* n 8) "vh"))))
+        active-transitions (atom {})]
     (r/create-class
       {:display-name "Graphviz"
        :component-did-mount
@@ -104,21 +106,34 @@
        (fn [this _ _]
          (when @container-ref
            ; https://github.com/magjac/d3-graphviz?tab=readme-ov-file#creating-transitions
-           (let [{:keys [dot row-count]} (r/props this)
+           (let [{:keys [actor store dot row-count]} (r/props this)
                  ; Use a named transition to ensure that only a single one is running at a time
                  ; i.e. when quickly changing the slider, any existing transition will be replaced
-                 t (-> (js/d3.transition "resize-diagram")
+                 transition-name (str "update-diagram-" (name actor) "-" (name store))
+                 t (-> (js/d3.transition transition-name)
                        (.duration animation-duration)
-                       (.ease js/d3.easeLinear))]
-             (with-container-height-transition row-count)
-             (-> (d3-element ".diagram")
-                 (.graphviz)
-                 (.transition t)
-                 (.renderDot dot)))))
+                       (.ease js/d3.easeLinear)
+                       (.on "start" (fn [] (swap! active-transitions assoc transition-name true)))
+                       (.on "end" (fn [] (swap! active-transitions dissoc transition-name))))
+                 ; Delay the transition if one is already running to avoid overlaps
+                 ; becausee overlaps cause exceptions which break subsequent transitions
+                 transition-delayed? (get @active-transitions transition-name)
+                 transition-delay (if transition-delayed? (+ 50 animation-duration) 0)
+                 start-diagram-transition (gfun/debounce
+                                            (fn [] (-> (d3-element ".diagram")
+                                                       (.graphviz)
+                                                       (.transition t)
+                                                       (.renderDot dot)))
+                                            transition-delay)
+                 start-container-transition (gfun/debounce
+                                              (fn [] (with-container-height-transition row-count))
+                                              transition-delay)]
+             (start-diagram-transition)
+             (start-container-transition))))
        :reagent-render
-       ; container div and diagram svg are d3 animated in parallel
-       ; so rendered as separate nodes to avoid bugs
        (fn [_] [:div.graphviz {:ref (fn [el] (reset! container-ref el))}
+                ; container div and diagram svg are d3 animated in parallel
+                ; so rendered as separate nodes to avoid bugs
                 [:div.diagram]])})))
 
 (defn toggle-actor!
@@ -290,7 +305,9 @@
                                             :associative
                                             (create-map-table data))]
                        [graphviz-component
-                        {:data        data
+                        {:actor       actor
+                         :store       store
+                         :data        data
                          :row-count   (case (store-types store)
                                         :database (->> (vals data) (map count) (reduce +))
                                         :associative (count data))

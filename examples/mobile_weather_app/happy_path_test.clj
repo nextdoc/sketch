@@ -235,7 +235,7 @@
 (deftest happy-path
   (->> {:steps                     test-steps
         :diagram-name              (str (sketch-run/this-ns))
-        :diagram-config            {#_#_:actor-order []}
+        :diagram-config            {#_#_:actor-order []}    ; :actor-order controls left > right order
         :closed-data-flow-schemas? true
         :closed-state-schemas?     true
         :dev?                      false}
