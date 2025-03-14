@@ -253,7 +253,7 @@
                                        :states  states
                                        :model   model-parsed
                                        :dev?    dev?
-                                       :tag     "r0.1.28"}
+                                       :tag     "r0.1.29"}
                                       (sequence-diagram-page)
                                       (html)))
     (log/info success-string)))
