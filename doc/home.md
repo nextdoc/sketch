@@ -86,10 +86,8 @@ Click on the image above to experiment with the interactivity.
     - For non-Clojure actors, A.I. can port the functions to most languages quickly
 - generate non-clojure code
     - Typescript/Zod TODO
-    - Apex TODO
     - Malli
         - JSON Schema
-        - Open API
 
 ## Testing: tools you can use 
 
@@ -138,7 +136,7 @@ Click on the image above to experiment with the interactivity.
 
 - Early alpha: likely to change but we'll strive to avoid breaking changes to the test api
 - Used effectively in multiple projects at Nextdoc and other companies
-- Diagram app is a proof of concept, has some rendering/UX issues on iOS
+- Diagram app is a proof of concept, has some issues but is mostly stable
 - Very few tests
 - Sparse documentation
 - Limited time to work on it until [Nextdoc](https://nextdoc.io/) has more bandwidth
