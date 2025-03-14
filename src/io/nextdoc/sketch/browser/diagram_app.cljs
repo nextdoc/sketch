@@ -196,10 +196,51 @@
 (defn start-resizing! [_]
   (swap! app-state assoc :resizing? true))
 
+(defn tooltip-component [props]
+  (let [state (r/atom {:open?         false                 ;; Whether the tooltip is open
+                       :click-handler nil})                 ;; To store the click handler
+        tooltip-el (atom nil)]                              ;; Reference to the tooltip element
+    (r/create-class
+      {:component-did-mount
+       (fn [this]
+         (let [handler (fn [e]
+                         (when (and (:open? @state)
+                                    @tooltip-el
+                                    (not (.contains @tooltip-el (.-target e))))
+                           (swap! state assoc :open? false)))]
+           (.addEventListener js/document "click" handler)
+           (swap! state assoc :click-handler handler)))
+
+       :component-will-unmount
+       (fn [this]
+         (when-let [handler (:click-handler @state)]
+           (.removeEventListener js/document "click" handler)))
+
+       :reagent-render
+       (fn []
+         ;; Wrap the icon and tooltip in a relative container to position the tooltip absolutely
+         [:div.tooltip-container
+          ;; Info icon toggles the tooltip on click
+          [:span {:style    {:cursor "pointer"}
+                  :on-click #(swap! state update :open? not)}
+           "ℹ️"]
+          ;; Render tooltip only if open
+          (when (:open? @state)
+            [:div {:class "tooltip"
+                   :ref   (fn [el] (reset! tooltip-el el))}
+             [:div.tooltip-content
+              [:div.tooltip-version "Sketch version:" [:span.version-number props]]
+              [:div.tooltip-creator
+               [:div.creator-label "Created by"]
+               [:div.creator-logo
+                [:a {:href "https://nextdoc.io/" :target "_blank" :rel "noopener noreferrer"}
+                 [:img {:src "https://nextdoc.io/images/Logo-NextDoc_Colour_Colour.svg"
+                        :alt "Nextdoc Logo"}]]]]]])])})))
+
 (defn app
   []
   (try
-    (let [{:keys [title left-width mermaid emit-count states actors actors-visible store-types settings]} @app-state
+    (let [{:keys [title left-width mermaid emit-count states actors actors-visible store-types settings tag]} @app-state
           {:keys [diffs message-diffs]} states
           next-msg-num (inc emit-count)                     ; add 1 to show states after message received, up to next message emitted
           diffs-applied (nth message-diffs next-msg-num)
@@ -250,7 +291,9 @@
                    :on-change #(swap! app-state assoc-in [:settings :max-columns]
                                       (js/parseInt (.. % -target -value)))}]
           [:span {:style {:margin-left "0.5rem"}}
-           (:max-columns settings)]]]]
+           (:max-columns settings)]]
+         [tooltip-component tag]
+         ]]
 
        [:div.container
         [:div.mermaid.left {:style {:width (str left-width "%")}}
@@ -328,7 +371,7 @@
       (rdc/render (rdc/create-root (.getElementById js/document "app")) [app]))))
 
 (defn ^:export load
-  [title mermaid-diagram states model]
+  [title mermaid-diagram states model tag]
   (try
     (-> (js/mermaid.render "sequence" mermaid-diagram)
         (.then (fn [result]
@@ -351,7 +394,8 @@
                                           (reader/read-string)
                                           ; convert back to EditScript
                                           (update :diffs #(mapv edit/edits->script %)))]
-                   (swap! app-state merge {:title       title
+                   (swap! app-state merge {:tag         tag
+                                           :title       title
                                            :actors      actors
                                            :store-types store-types
                                            :states      states-decoded

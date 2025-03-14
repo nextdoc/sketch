@@ -213,7 +213,7 @@
     [:div#app]
     [:script {:type "text/javascript"}
      (str/join "\n" ["const load = () => {"
-                     (format "io.nextdoc.sketch.browser.diagram_app.load('%s', %s, %s, %s);"
+                     (format "io.nextdoc.sketch.browser.diagram_app.load('%s', %s, %s, %s, %s);"
                              title
                              (json/write-str diagram)
                              (-> states
@@ -222,7 +222,8 @@
                                  (json/write-str))
                              (-> model
                                  (pr-str)
-                                 (json/write-str)))
+                                 (json/write-str))
+                             (json/write-str tag))
                      "}"])]
     [:script {:type   "text/javascript"
               :src    (if dev? "http://localhost:8000/diagram-js/main.js"
