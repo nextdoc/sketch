@@ -1,0 +1,197 @@
+# Sketch: Network Modeling Tool
+
+> Sketch is a Clojure library for modeling and testing distributed systems before implementation. It allows you to define actors, state stores, and the communication between them, generating visual sequence diagrams and validating data flow with Malli schemas.
+
+## Usage
+
+### Basic Network Modeling
+
+1. Define your network model in an EDN file (e.g., `my-system-model.edn`):
+
+```clojure
+{:locations {:web-client {:id :web-client
+                          :name "Web Browser"
+                          :state {:local-storage {:id :local-storage
+                                                  :type :associative
+                                                  :entities #{:user :preferences}}}
+                          :actors {:spa {:id :spa
+                                         :name "Single Page App"
+                                         :ports {:http {:id :http
+                                                        :name "HTTP Client"}}}}}}
+             :server {:id :server
+                      :name "Backend Server"
+                      :state {:database {:id :database
+                                         :type :database
+                                         :entities #{:user :order}}}
+                      :actors {:api {:id :api
+                                     :name "REST API"
+                                     :ports {:endpoints {:id :endpoints
+                                                         :name "HTTP Endpoints"}}}}}}}
+
+ :domain-entities {:user {:id :user
+                          :name "User details"}
+                   :order {:id :order
+                           :name "Order information"}}
+                           
+ :data-flow [{:description "Login request"
+              :from #ref [:locations :web-client :actors :spa :ports :http]
+              :to #ref [:locations :server :actors :api :ports :endpoints]
+              :request :login}]}
+```
+
+2. Create a registry namespace containing your schemas:
+
+```clojure
+(ns my-system.registry
+  (:require [malli.core :as m]
+            [malli.util :as mu]))
+
+(def generated
+  ;; Will be populated by Sketch watcher
+  {:server-api/login-request [:map]
+   :server-api/login-response [:map]})
+
+(def domain-schema
+  {:my-system/user [:map
+                    [:id :uuid]
+                    [:username :string]
+                    [:email :string]]})
+
+(defn registry []
+  (merge generated domain-schema
+         (m/default-schemas)
+         (mu/schemas)))
+```
+
+3. Create a test to model system behavior:
+
+```clojure
+(ns my-system.flow-test
+  (:require [clojure.test :refer :all]
+            [io.nextdoc.sketch.run :as sketch-run]
+            [io.nextdoc.sketch.state :as sketch-state]
+            [io.nextdoc.sketch.watcher :as sketch-watcher]
+            [my-system.registry :as model]))
+
+(defn login-request []
+  {:actor :web-client/spa
+   :action "User submits login form"
+   :handler (fn [{:keys [state]}]
+              (let [credentials {:username "user1" :password "secret"}]
+                {:emit [{:to :server/api
+                         :request :login
+                         :payload credentials}]}))})
+
+(defn login-response []
+  {:actor :server/api
+   :action "Server validates credentials and responds"
+   :handler (fn [{:keys [state messages]}]
+              (let [request (-> messages last :message :payload)
+                    user {:id (random-uuid)
+                          :username (:username request)
+                          :email "user1@example.com"}]
+                (sketch-state/put-record! (:database state) :users user)
+                {:emit [{:to :web-client/spa
+                         :request :login
+                         :direction :response
+                         :payload user}]}))})
+                         
+(deftest login-flow
+  (->> {:steps [{:reset (fn [system] system)}
+                login-request
+                login-response]
+        :diagram-name "my-system/login-flow"
+        :registry (model/registry)
+        :model "my-system/model.edn"}
+       (sketch-run/run-steps!)))
+```
+
+4. Start the watcher to sync your model with the registry:
+
+```clojure
+(sketch-watcher/start! {:model-path "my-system/model.edn"
+                        :registry-path "src/my_system/registry.cljc"})
+```
+
+## API Reference
+
+### Core Functions
+
+- `io.nextdoc.sketch.run/run-steps!`: Executes a sequence of test steps, validating state and data flow
+- `io.nextdoc.sketch.state/atom-state-store`: Creates an in-memory state store for testing
+- `io.nextdoc.sketch.watcher/start!`: Starts a file watcher to sync model with registry
+- `io.nextdoc.sketch.watcher/stop!`: Stops the file watcher
+
+### State Management
+
+The `io.nextdoc.sketch.state` namespace provides protocols for working with state:
+
+- `StateDatabase`: Operations for database-like stores
+- `StateAssociative`: Operations for associative data structures
+
+### Test Step Structure
+
+Each test step should be a function that returns a map with:
+
+- `:actor`: The actor performing the action (keyword)
+- `:action`: Description of the action (string)
+- `:handler`: Function that receives state and messages, returns emitted messages
+- `:before`: Optional function run before the handler
+- `:after`: Optional function run after the handler
+
+## Contributing
+
+Contributions are welcome! Check the [GitHub repository](https://github.com/nextdoc/sketch) for:
+
+- Issue tracker for reporting bugs or requesting features
+- Pull request process for submitting changes
+
+## License
+
+Sketch is distributed under the Eclipse Public License 2.0. See the LICENSE file in the repository for details.
+
+## Community
+
+- [GitHub Issues](https://github.com/nextdoc/sketch/issues): Report bugs or request features
+- [Clojurians Slack](https://clojurians.slack.com/): Discuss Sketch in the #sketch channel
+
+## Advanced Usage
+
+### Custom State Stores
+
+You can create custom state stores by implementing the `StateDatabase` and `StateAssociative` protocols:
+
+```clojure
+(deftype MyCustomStore [state]
+  StateDatabase
+  (get-record [this entity-type id] ...)
+  (query [this entity-type predicate] ...)
+  (put-record! [this entity-type record] ...)
+  (delete-record! [this entity-type id] ...)
+  (clear! [this] ...)
+  (as-map [this] ...)
+  
+  StateAssociative
+  (get-value [this id] ...)
+  (put-value! [this id value] ...)
+  (delete-value! [this id] ...)
+  (as-lookup [this] ...))
+```
+
+### Working with Diagrams
+
+Sketch generates sequence diagrams in HTML format. View these in your browser to:
+
+1. Click on actors to show their state
+2. Click on messages to see state at that point
+3. Zoom and pan the diagram for better visibility
+
+### Data Flow Validation
+
+All messages between actors are validated against Malli schemas. Configure validation with:
+
+```clojure
+{:closed-data-flow-schemas? true  ; Strict schema validation
+ :closed-state-schemas? true      ; Strict state validation
+ :state-schemas-ignored #{:some/schema}} ; Schemas to skip validation
+```
