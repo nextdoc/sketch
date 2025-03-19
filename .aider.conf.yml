@@ -1,10 +1,25 @@
 cache-prompts: true
 auto-commits: false
 watch-files: true
+thinking-tokens: 10k
 
 # test-cmd: bb count-text-elements
 #auto-test: true
 #test: false
 
 read:
-#  - examples/mobile_weather_app/weather_registry.cljc
+  - doc/home.md
+  - examples/mobile_weather_app/happy_path_test.clj
+  - examples/mobile_weather_app/open-weather-response.json
+  - examples/mobile_weather_app/weather-model.edn
+  - examples/mobile_weather_app/weather_domain.cljc
+  - examples/mobile_weather_app/weather_registry.cljc
+  - src/io/nextdoc/sketch/core.clj
+  - src/io/nextdoc/sketch/diagrams.clj
+  - src/io/nextdoc/sketch/run.clj
+  - src/io/nextdoc/sketch/state.clj
+  - src/io/nextdoc/sketch/sync.clj
+  - src/io/nextdoc/sketch/test.clj
+  - src/io/nextdoc/sketch/watcher.clj
+  - src/io/nextdoc/sketch/browser/diagram_app.cljs
+  - src/io/nextdoc/sketch/browser/host-page.css
