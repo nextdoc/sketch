@@ -5,18 +5,11 @@
             [malli.util :as mu]
             [rewrite-clj.zip :as z]))
 
-; TODO generate an "test story" html page with:
-; - sequence diagram on left
-; - time scrub vertically using sequence diagram scroll with indicator line
-; - N x state diagrams on right i.e. accumulated state for N actors
-
 ; see https://github.com/clj-commons/rewrite-clj/blob/main/doc/01-user-guide.adoc
 
 ; TODO this tool can generate and validate :where #{} in schema i.e. filter schemas for typescript and apex generators
 ; TODO choose source or target naming: maybe plugin fns for generating namespace and name
 ; TODO only include keywords in schema if there's data-flow that uses them
-
-
 
 (defn map-entry-location?
   "return true if a zloc is a vector containing a :keyword and more i.e. the shape of a schema map entry."

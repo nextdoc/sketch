@@ -53,6 +53,12 @@
       (query [_ entity-type predicate]
         (select [entity-type ALL predicate] @database))
       (put-record! [_ entity-type record]
+        ;; Check if table exists
+        (when-not (contains? @database entity-type)
+          (throw (ex-info "Table does not exist" {:entity-type entity-type})))
+        ;; Check if record has id field
+        (when-not (contains? record :id)
+          (throw (ex-info "Record must have an :id field" {:record record})))
         (swap! database update entity-type
                (fn upsert-by-id [db]
                  (conj
