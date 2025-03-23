@@ -2,6 +2,34 @@
   (:require [clojure.test :refer :all]
             [io.nextdoc.sketch.state :as state]))
 
+(deftest record-id-uniqueness-test
+  (testing "Only one record per ID can exist in a database state store"
+    (let [store (state/atom-state-store)]
+      ;; Create a table for testing
+      (state/create-table store :users)
+      
+      ;; Add initial record with ID 1
+      (state/put-record! store :users {:id 1 :name "Original" :data "Initial"})
+      
+      ;; Verify record exists
+      (let [initial-records (state/query store :users (constantly true))]
+        (is (= 1 (count initial-records)) "Should have exactly one record")
+        (is (= 1 (:id (first initial-records))) "Record should have ID 1")
+        (is (= "Original" (:name (first initial-records)))))
+      
+      ;; Add another record with the same ID but different data
+      (state/put-record! store :users {:id 1 :name "Updated" :data "New"})
+      
+      ;; Verify we still have just one record
+      (let [updated-records (state/query store :users (constantly true))]
+        (is (= 1 (count updated-records)) "Should still have exactly one record")
+        
+        ;; Verify the record was updated, not duplicated
+        (let [record (first updated-records)]
+          (is (= 1 (:id record)) "Record should have ID 1")
+          (is (= "Updated" (:name record)) "Name should be updated")
+          (is (= "New" (:data record)) "Data should be updated"))))))
+
 (deftest state-associative-test
   (testing "StateAssociative protocol implementation"
     (let [store (state/atom-state-store)]
