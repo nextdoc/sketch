@@ -192,3 +192,16 @@ svg text.actor, svg text.messageText {
   fill: #1740FF !important;
   font-size: 1.1em !important;
 }
+
+/* Highlighted cell states */
+.cell-added {
+  background-color: #A3E4D7; /* Green */
+}
+
+.cell-modified {
+  background-color: #FAD7A0; /* Orange */
+}
+
+.cell-deleted {
+  background-color: #F5B7B1; /* Red */
+}

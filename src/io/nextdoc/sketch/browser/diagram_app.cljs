@@ -1,5 +1,6 @@
 (ns io.nextdoc.sketch.browser.diagram-app
   (:require [cljs.reader :as reader]
+            [clojure.set :as set]
             [com.rpl.specter :refer [ALL MAP-KEYS MAP-VALS collect collect-one multi-path select select-first transform]]
             [editscript.core :as edit]
             [goog.string :as gstring]
@@ -14,41 +15,105 @@
                             :emit-count nil
                             :states     nil}))
 
+(defn detect-changes
+  "Compare previous and current state to identify:
+   - Added records (not present in previous state)
+   - Deleted records (present in previous but not in current)
+   - Modified fields (fields with different values)"
+  [prev-state current-state]
+  (cond
+    ;; Both nil or empty - no changes
+    (and (or (nil? prev-state) (empty? prev-state))
+         (or (nil? current-state) (empty? current-state)))
+    {}
+
+    ;; Previous state is nil/empty - all current are adds
+    (or (nil? prev-state) (empty? prev-state))
+    {:added (set (keys current-state))}
+
+    ;; Current state is nil/empty - all previous are deletes
+    (or (nil? current-state) (empty? current-state))
+    {:deleted (set (keys prev-state))}
+
+    ;; Both have content - compare them
+    :else
+    (let [all-prev-keys (set (keys prev-state))
+          all-curr-keys (set (keys current-state))
+          added-records (set/difference all-curr-keys all-prev-keys)
+          deleted-records (set/difference all-prev-keys all-curr-keys)
+          common-records (set/intersection all-prev-keys all-curr-keys)
+
+          ;; For each common record, find modified fields
+          modified (reduce (fn [acc record-id]
+                             (let [prev-record (get prev-state record-id)
+                                   curr-record (get current-state record-id)
+                                   ;; Handle records that might not be maps (for associative stores)
+                                   modified-fields (when (and (map? curr-record) (map? prev-record))
+                                                     (reduce-kv
+                                                       (fn [field-acc field-key field-val]
+                                                         (if (not= field-val (get prev-record field-key))
+                                                           (conj field-acc field-key)
+                                                           field-acc))
+                                                       #{}
+                                                       curr-record))
+                                   modified-fields (or modified-fields #{})]
+                               (if (seq modified-fields)
+                                 (assoc acc record-id modified-fields)
+                                 acc)))
+                           {}
+                           common-records)]
+      {:added    added-records
+       :deleted  deleted-records
+       :modified modified})))
+
 (defn create-tables-diagram
   "Creates a Graphviz diagram string showing multiple tables side by side
    Input: vector of maps, where each map has :name and :data keys
    Example: [{:name \"table1\" :data {...}} {:name \"table2\" :data {...}}]"
   [tables {:keys [column-headers? max-columns]}]
-  (letfn [(make-html-table [data table-name]
+  (letfn [(make-html-table [data table-name changes]
             (when (seq data)
-              (let [keys (->> (vals data)
-                              (first)
-                              (keys)
-                              (sort-by #(if (= :id %) [0 ""] [1 %])))
+              (let [sorted-keys (->> (vals data)
+                                     (first)
+                                     (keys)
+                                     (sort-by #(if (= :id %) [0 ""] [1 %])))
                     headers (str "<TR>"
-                                 (->> keys
+                                 (->> sorted-keys
                                       (take max-columns)
                                       (map #(str "<TD ALIGN='LEFT'><B>" (name %) "</B></TD>"))
                                       (apply str))
                                  "</TR>")]
                 (str "<TABLE BGCOLOR='white' BORDER='0' CELLBORDER='1' CELLSPACING='0' CELLPADDING='4'>"
-                     "<TR><TD ALIGN='LEFT' COLSPAN='" (count keys) "'><B>" table-name "</B></TD></TR>"
+                     "<TR><TD ALIGN='LEFT' COLSPAN='" (count sorted-keys) "'><B>" table-name "</B></TD></TR>"
                      (when column-headers? headers)
                      (apply str
-                            (for [row-data (vals data)]
+                            (for [record-id (keys data)
+                                  :let [row-data (get data record-id)
+                                        added? (contains? (:added changes) record-id)
+                                        deleted? (contains? (:deleted changes) record-id)
+                                        modified-fields (get (:modified changes) record-id #{})]]
                               (str "<TR>"
-                                   (->> keys
+                                   (->> sorted-keys
                                         (take max-columns)
-                                        (mapv #(str "<TD ALIGN='LEFT'>" (str (get row-data %)) "</TD>"))
+                                        (mapv (fn [field-key]
+                                                (let [value (get row-data field-key)
+                                                      bg-color (cond
+                                                                 added? "#A3E4D7" ; Green for added records
+                                                                 deleted? "#F5B7B1" ; Red for deleted records
+                                                                 (contains? modified-fields field-key) "#FAD7A0" ; Orange for changed fields
+                                                                 :else "white")]
+                                                  (str "<TD ALIGN='LEFT' BGCOLOR='" bg-color "'>"
+                                                       (str value)
+                                                       "</TD>"))))
                                         (apply str))
                                    "</TR>")))
                      "</TABLE>"))))
 
-          (render-table [{:keys [name data]}]
+          (render-table [{:keys [name data changes]}]
             (when (seq data)
               (gstring/format "  %s [label=<%s>];\n"
                               name
-                              (make-html-table data name))))]
+                              (make-html-table data name (or changes {})))))]
 
     (str "digraph {\n"
          "  bgcolor=\"#BEC7FC\";\n"
@@ -156,16 +221,16 @@
    This is triggered when a user clicks on a message in the sequence diagram,
    and causes the state panel to update showing the state after that message."
   [emit-count]
-  (swap! app-state assoc 
+  (swap! app-state assoc
          :emit-count emit-count
          :selected-message emit-count))
 
-(def tooltip-debounce-delay 50) ; Small delay to prevent flickering
+(def tooltip-debounce-delay 50)                             ; Small delay to prevent flickering
 
 (def debounced-set-tooltip-state
   (gfun/debounce
     (fn [emit-count position]
-      (swap! app-state assoc 
+      (swap! app-state assoc
              :emit-count/hover emit-count
              :tooltip/position position))
     tooltip-debounce-delay))
@@ -177,9 +242,9 @@
   [emit-count event]
   (let [target (.-target event)
         rect (.getBoundingClientRect target)
-        position {:x (.-left rect)
-                  :y (.-top rect)
-                  :width (.-width rect)
+        position {:x      (.-left rect)
+                  :y      (.-top rect)
+                  :width  (.-width rect)
                   :height (.-height rect)}]
     (debounced-set-tooltip-state emit-count position)))
 
@@ -195,7 +260,7 @@
    Returns a reagent component that manages the diagram lifecycle."
   [_]
   (let [container-ref (atom nil)
-        selected-message-ref (atom nil)] ; Store reference to the currently selected message
+        selected-message-ref (atom nil)]                    ; Store reference to the currently selected message
     (r/create-class
       {:display-name "mermaid diagram"
        :reagent-render
@@ -282,9 +347,9 @@
     (when-let [position (:tooltip/position @app-state)]
       (let [step-action (get-in @app-state [:step-actions emit-number])]
         [:div.message-tooltip
-         {:style {:position "absolute"
-                  :left (str (:x position) "px")
-                  :top (str (- (:y position) 50) "px") 
+         {:style {:position  "absolute"
+                  :left      (str (:x position) "px")
+                  :top       (str (- (:y position) 50) "px")
                   :transform "translateX(-50%)"
                   :animation "tooltip-fade-in 0.15s ease-in-out"}}
          [:div.tooltip-content
@@ -338,6 +403,58 @@
                  [:img {:src "https://nextdoc.io/images/Logo-NextDoc_Colour_Colour.svg"
                         :alt "Nextdoc Logo"}]]]]]])])})))
 
+(defn process-database-store
+  "Process data for a database type store, handling empty tables and detecting changes"
+  [single-store prev-store]
+  (reduce-kv (fn [acc entity-type records]
+               (if (empty? records)
+                 acc
+                 (let [prev-records (get-in prev-store [entity-type])
+                       record-map (reduce #(assoc %1 (:id %2) %2) {} records)
+                       prev-record-map (reduce #(assoc %1 (:id %2) %2) {} prev-records)
+                       changes (detect-changes prev-record-map record-map)]
+                   (assoc acc entity-type
+                              {:records records
+                               :changes changes}))))
+             {}
+             single-store))
+
+(defn process-associative-store
+  "Process data for an associative type store, detecting changes between states"
+  [single-store prev-store]
+  {:data    single-store
+   :changes (detect-changes prev-store single-store)})
+
+(defn format-database-data-for-rendering
+  "Convert database data into format needed for table rendering"
+  [data]
+  (reduce-kv (fn [acc entity-type entity-data]
+               (conj acc {:name    (name entity-type)
+                          :data    (reduce (fn [acc record]
+                                             (assoc acc (:id record) record))
+                                           {}
+                                           (:records entity-data))
+                          :changes (:changes entity-data)}))
+             []
+             data))
+
+(defn process-store
+  "Process a single store for an actor, handling different store types"
+  [store-key store-types states-at-step prev-states-at-step]
+  (let [single-store (get states-at-step store-key)
+        prev-store (get prev-states-at-step store-key)
+        data (when single-store
+               (case (store-types store-key)
+                 :database (process-database-store single-store prev-store)
+                 :associative (process-associative-store single-store prev-store)
+                 {}))
+        processed-data (case (store-types store-key)
+                         :database (format-database-data-for-rendering data)
+                         ;; For associative stores, just pass the data through
+                         data)]
+    {:store store-key
+     :data  processed-data}))
+
 (defn app
   "Main application component that renders the entire UI.
    Manages the layout with a left panel (sequence diagram) and right panel (state displays).
@@ -349,35 +466,27 @@
           {:keys [diffs message-diffs]} states
           next-msg-num (inc emit-count)                     ; add 1 to show states after message received, up to next message emitted
           diffs-applied (nth message-diffs next-msg-num)
+          prev-diffs-applied (if (pos? emit-count)
+                               (nth message-diffs emit-count)
+                               0)
           states-at-step (when (and emit-count states)
                            (->> diffs
                                 (take diffs-applied)
                                 (reduce edit/patch {})))
-          visible-state-stores (mapv (fn actor-storages [actor]
-                                       (let [stores-in-actor (:store (get actors actor))]
-                                         {:actor  actor
-                                          :stores (->> stores-in-actor
-                                                       (mapv (fn actor-store [store-key]
-                                                               (let [single-store (get states-at-step store-key)
-                                                                     data (if single-store
-                                                                            (if (= :database (store-types store-key))
-                                                                              ; hide empty tables
-                                                                              (reduce-kv (fn [acc entity-type records]
-                                                                                           (if (empty? records)
-                                                                                             acc
-                                                                                             (assoc acc entity-type records)))
-                                                                                         {}
-                                                                                         single-store)
-                                                                              single-store)
-                                                                            {})]
-                                                                 {:store store-key
-                                                                  :data  data}))))}))
+          prev-states-at-step (when (and emit-count states (pos? emit-count))
+                                (->> diffs
+                                     (take prev-diffs-applied)
+                                     (reduce edit/patch {})))
+          visible-state-stores (mapv (fn [actor]
+                                       {:actor  actor
+                                        :stores (mapv #(process-store % store-types states-at-step prev-states-at-step)
+                                                      (:store (get actors actor)))})
                                      actors-visible)]
       [:div#diagram-app {:onMouseMove change-divider-location!
                          :onMouseUp   stop-resizing!}
-       
+
        [message-tooltip]
-       
+
        [:div.header
 
         [:div.title
@@ -443,30 +552,23 @@
                      [:div store]
                      (let [diagram-string (case (store-types store)
                                             :database
-                                            (-> (reduce-kv (fn store-data [acc entity-type records]
-                                                             (conj acc {:name (name entity-type)
-                                                                        :data (reduce (fn [acc record]
-                                                                                        (assoc acc (:id record) record))
-                                                                                      {}
-                                                                                      records)}))
-                                                           []
-                                                           data)
+                                            (-> data
                                                 (create-tables-diagram settings))
                                             :associative
-                                            (create-map-table data))]
+                                            (create-map-table (:data data)))]
                        [graphviz-component
                         {:actor       actor
                          :store       store
                          :data        data
                          :row-count   (case (store-types store)
-                                        :database (->> (vals data) (map count) (reduce +))
-                                        :associative (count data))
+                                        :database (->> data (map :data) (mapcat vals) (count))
+                                        :associative (count (:data data)))
                          :table-count (case (store-types store)
                                         :database (count data)
-                                        :associative (count (keys data)))
+                                        :associative (count (keys (:data data))))
                          :dot         diagram-string}])])]])]]])
     (catch :default e
-      (js/console.error (ex-message e) (some-> e (ex-data) (clj->js)))
+      (js/console.error e)
       [:div {:style {:padding "1rem"
                      :color   "RED"}}
        "Render failed! See console for more info."])))
@@ -518,15 +620,15 @@
                                           (update :diffs #(mapv edit/edits->script %)))
                        ; Parse step actions if provided
                        parsed-actions (when step-actions (js->clj step-actions))]
-                   (swap! app-state merge {:tag         tag
-                                           :title       title
-                                           :actors      actors
-                                           :store-types store-types
-                                           :states      states-decoded
+                   (swap! app-state merge {:tag          tag
+                                           :title        title
+                                           :actors       actors
+                                           :store-types  store-types
+                                           :states       states-decoded
                                            :step-actions parsed-actions
-                                           :mermaid     (-> result
-                                                            (js->clj :keywordize-keys true)
-                                                            :svg)}))))
+                                           :mermaid      (-> result
+                                                             (js->clj :keywordize-keys true)
+                                                             :svg)}))))
         (.catch js/console.error))
     (catch :default e
       (js/console.log e))))
