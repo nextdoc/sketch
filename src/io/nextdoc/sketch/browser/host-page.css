@@ -109,6 +109,25 @@ svg text.actor, svg text.messageText {
     pointer-events: auto;
 }
 
+/* Message tooltip styling */
+@keyframes tooltip-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.message-tooltip {
+    position: fixed;
+    z-index: 1000;
+    background-color: white;
+    border: 2px solid #7D8FF9;
+    border-radius: 4px;
+    padding: 12px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    min-width: 150px;
+    opacity: 1;
+    will-change: opacity; /* Performance hint for browsers */
+}
+
 .tooltip-content {
     display: flex;
     flex-direction: column;
@@ -147,4 +166,22 @@ svg text.actor, svg text.messageText {
     position: relative;
     display: inline-block;
     z-index: 1000;
+}
+
+.tooltip-action {
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 8px;
+}
+
+.action-label {
+    font-weight: 500;
+}
+
+.action-text {
+    font-weight: normal;
+    color: #1740FF;
+    font-style: italic;
 }

@@ -194,7 +194,7 @@
       (log/warn "  use nextdoc.fbp.stream3-sketch"))))
 
 (defn sequence-diagram-page
-  [{:keys [diagram title model states tag dev?]}]
+  [{:keys [diagram title model states tag dev? step-actions]}]
   [:html {:lang "en"}
    [:head
     [:meta {:charset "UTF-8"}]
@@ -213,7 +213,7 @@
     [:div#app]
     [:script {:type "text/javascript"}
      (str/join "\n" ["const load = () => {"
-                     (format "io.nextdoc.sketch.browser.diagram_app.load('%s', %s, %s, %s, %s);"
+                     (format "io.nextdoc.sketch.browser.diagram_app.load('%s', %s, %s, %s, %s, %s);"
                              title
                              (json/write-str diagram)
                              (-> states
@@ -223,7 +223,8 @@
                              (-> model
                                  (pr-str)
                                  (json/write-str))
-                             (json/write-str tag))
+                             (json/write-str tag)
+                             (json/write-str step-actions)) ; Added step actions
                      "}"])]
     [:script {:type   "text/javascript"
               :src    (if dev? "http://localhost:8000/diagram-js/main.js"
@@ -232,7 +233,7 @@
               :onload "load();"}]]])
 
 (defn write-sequence-diagram!
-  [{:keys [test-ns-str diagram-dir diagram-config system model-parsed states dev?]}]
+  [{:keys [test-ns-str diagram-dir diagram-config system model-parsed states dev? step-actions]}]
   (let [test-name (as-> test-ns-str $
                         (str/split $ #"\.")
                         (last $))
@@ -252,6 +253,7 @@
                                        :title   test-name
                                        :states  states
                                        :model   model-parsed
+                                       :step-actions step-actions ; Added step actions
                                        :dev?    dev?
                                        :tag     "r0.1.29"}
                                       (sequence-diagram-page)
@@ -316,6 +318,7 @@
                                  (read-config))
                          (throw (ex-info "model not found" {:source model})))
         system (atom empty-system)
+        step-actions (atom []) ; Added to collect step actions
         run-step! (fn run-step! [step]
                     (let [step-result (step)                ; invoke step thunk to access it's config
                           {:keys     [reset action before handler after]
@@ -373,9 +376,11 @@
                                                           :message                   message
                                                           :step                      step
                                                           :step-info                 current-step})
-                                      ; record emitted messages
+                                      ; record emitted messages and actions
                                       (let [network-message {:data-flow data-flow
                                                              :message   (assoc message :from from-keyword)}]
+                                        ; Collect the action for this message
+                                        (swap! step-actions conj action)
                                         ; for target
                                         (swap! system update-in [:messages (:to message)] (fnil conj []) network-message)
                                         ; also track all messages
@@ -458,6 +463,7 @@
                               :system         system
                               :model-parsed   model-parsed
                               :states         @state-snapshots
+                              :step-actions   @step-actions ; Pass the collected actions
                               :dev?           dev?})
 
     @system))

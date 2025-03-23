@@ -75,7 +75,12 @@
 
 (def animation-duration 500)
 
-(defn graphviz-component [_]
+(defn graphviz-component
+  "Renders a Graphviz diagram using D3.
+   Handles transitions between different diagram states.
+   Uses a container with an inner diagram div to allow for
+   independent transitions of the SVG and its container."
+  [_]
   (let [container-ref (atom nil)
         d3-element (fn [selector] (-> js/d3
                                       (.select @container-ref)
@@ -137,6 +142,9 @@
                 [:div.diagram]])})))
 
 (defn toggle-actor!
+  "Toggles the visibility of an actor's state in the right panel.
+   Takes the actor name as a string and toggles its presence
+   in the actors-visible set in app-state."
   [actor-name]
   (let [k (keyword actor-name)]
     (if (contains? (:actors-visible @app-state) k)
@@ -144,10 +152,46 @@
       (swap! app-state update :actors-visible (fnil conj #{}) k))))
 
 (defn set-emitted-msg-count!
+  "Sets the current message count in app-state.
+   This is triggered when a user clicks on a message in the sequence diagram,
+   and causes the state panel to update showing the state after that message."
   [emit-count]
   (swap! app-state assoc :emit-count emit-count))
 
-(defn mermaid-sequence [_]
+(def tooltip-debounce-delay 50) ; Small delay to prevent flickering
+
+(def debounced-set-tooltip-state
+  (gfun/debounce
+    (fn [emit-count position]
+      (swap! app-state assoc 
+             :emit-count/hover emit-count
+             :tooltip/position position))
+    tooltip-debounce-delay))
+
+(defn set-hovered-msg-count!
+  "Sets the hover state for a message and captures its position.
+   Takes the emit count and the mouseover event, extracts the position
+   of the target element, and stores both the count and position in app-state."
+  [emit-count event]
+  (let [target (.-target event)
+        rect (.getBoundingClientRect target)
+        position {:x (.-left rect)
+                  :y (.-top rect)
+                  :width (.-width rect)
+                  :height (.-height rect)}]
+    (debounced-set-tooltip-state emit-count position)))
+
+(defn clear-hovered-msg!
+  "Clears the hover state when the mouse leaves a message.
+   Removes both the emit-count/hover and tooltip/position from app-state."
+  []
+  (swap! app-state dissoc :emit-count/hover :tooltip/position))
+
+(defn mermaid-sequence
+  "Renders a Mermaid sequence diagram from an SVG string.
+   Sets up click handlers for actors and messages.
+   Returns a reagent component that manages the diagram lifecycle."
+  [_]
   (let [container-ref (atom nil)]
     (r/create-class
       {:display-name "mermaid diagram"
@@ -181,22 +225,67 @@
                    (.addEventListener stepMessage
                                       "click"
                                       (fn [_] (set-emitted-msg-count! emit-number)))
+                   (swap! counter inc))))
+             (let [counter (atom 0)]
+               (doseq [stepMessage (.getElementsByClassName svg-node "messageText")]
+                 (let [emit-number @counter]
+                   (.addEventListener stepMessage
+                                      "mouseover"
+                                      (fn [event] (set-hovered-msg-count! emit-number event)))
+                   (.addEventListener stepMessage
+                                      "mouseout"
+                                      (fn [_] (clear-hovered-msg!)))
                    (swap! counter inc)))))))})))
 
-(defn change-divider-location! [event]
+(defn change-divider-location!
+  "Updates the divider position when the user drags it.
+   Takes a mouse event and calculates the new width percentage
+   for the left panel, clamping it between 10% and 90%."
+  [event]
   (when (:resizing? @app-state)
     (let [container-width (.-offsetWidth (.querySelector js/document ".container"))
           new-left-width (* (/ (.-clientX event) container-width) 100)
           clamped-width (max 10 (min 90 new-left-width))]   ;; Clamping between 10% and 90%
       (swap! app-state assoc :left-width clamped-width))))
 
-(defn stop-resizing! [_]
+(defn stop-resizing!
+  "Stops the resizing operation when the mouse button is released.
+   Sets the resizing? flag to false in app-state."
+  [_]
   (swap! app-state assoc :resizing? false))
 
-(defn start-resizing! [_]
+(defn start-resizing!
+  "Starts the resizing operation when the divider is clicked.
+   Sets the resizing? flag to true in app-state."
+  [_]
   (swap! app-state assoc :resizing? true))
 
-(defn tooltip-component [props]
+(defn message-tooltip
+  "Renders a tooltip above sequence diagram messages when hovering.
+   Displays the step number and action of the message being hovered over.
+   Uses absolute positioning based on the element's coordinates.
+   Only renders when both emit-number and position are present in app-state."
+  []
+  (when-let [emit-number (:emit-count/hover @app-state)]
+    (when-let [position (:tooltip/position @app-state)]
+      (let [step-action (get-in @app-state [:step-actions emit-number])]
+        [:div.message-tooltip
+         {:style {:position "absolute"
+                  :left (str (:x position) "px")
+                  :top (str (- (:y position) 50) "px") 
+                  :transform "translateX(-50%)"
+                  :animation "tooltip-fade-in 0.15s ease-in-out"}}
+         [:div.tooltip-content
+          (when step-action
+            [:div.tooltip-action
+             [:span.action-text step-action]])]]))))
+
+(defn tooltip-component
+  "Creates a clickable information icon with a tooltip.
+   The tooltip shows version information and attribution.
+   Handles click-outside behavior to close the tooltip.
+   Takes props to display in the version field."
+  [props]
   (let [state (r/atom {:open?         false                 ;; Whether the tooltip is open
                        :click-handler nil})                 ;; To store the click handler
         tooltip-el (atom nil)]                              ;; Reference to the tooltip element
@@ -238,6 +327,10 @@
                         :alt "Nextdoc Logo"}]]]]]])])})))
 
 (defn app
+  "Main application component that renders the entire UI.
+   Manages the layout with a left panel (sequence diagram) and right panel (state displays).
+   Calculates the current state based on emit-count and diffs.
+   Handles errors during rendering with a fallback UI."
   []
   (try
     (let [{:keys [title left-width mermaid emit-count states actors actors-visible store-types settings tag]} @app-state
@@ -270,7 +363,9 @@
                                      actors-visible)]
       [:div#diagram-app {:onMouseMove change-divider-location!
                          :onMouseUp   stop-resizing!}
-
+       
+       [message-tooltip]
+       
        [:div.header
 
         [:div.title
@@ -364,14 +459,29 @@
                      :color   "RED"}}
        "Render failed! See console for more info."])))
 
-(defn ^:dev/after-load mount! []
+(defn ^:dev/after-load mount!
+  "Mounts the application to the DOM.
+   Called after code reload during development or initial load.
+   Handles both initial mounting and re-rendering."
+  []
   (let [diagram-app (.getElementById js/document "diagram-app")]
     (if diagram-app
       (rdc/render (.getElementById js/document "app") [app])
       (rdc/render (rdc/create-root (.getElementById js/document "app")) [app]))))
 
 (defn ^:export load
-  [title mermaid-diagram states model tag]
+  "Entry point function exported to JavaScript.
+   Takes diagram data and initializes the application.
+   Renders the Mermaid diagram, processes model data,
+   extracts actor and state information, and updates app-state.
+   Parameters:
+     title - Title of the diagram
+     mermaid-diagram - Mermaid syntax diagram string
+     states - EDN string representing state transitions
+     model - EDN string representing the model structure
+     tag - Version tag string
+     step-actions - Array of step action strings"
+  [title mermaid-diagram states model tag step-actions]
   (try
     (-> (js/mermaid.render "sequence" mermaid-diagram)
         (.then (fn [result]
@@ -393,12 +503,15 @@
                        states-decoded (-> states
                                           (reader/read-string)
                                           ; convert back to EditScript
-                                          (update :diffs #(mapv edit/edits->script %)))]
+                                          (update :diffs #(mapv edit/edits->script %)))
+                       ; Parse step actions if provided
+                       parsed-actions (when step-actions (js->clj step-actions))]
                    (swap! app-state merge {:tag         tag
                                            :title       title
                                            :actors      actors
                                            :store-types store-types
                                            :states      states-decoded
+                                           :step-actions parsed-actions
                                            :mermaid     (-> result
                                                             (js->clj :keywordize-keys true)
                                                             :svg)}))))
