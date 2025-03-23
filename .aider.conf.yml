@@ -7,19 +7,21 @@ thinking-tokens: 10k
 #auto-test: true
 #test: false
 
+dark-mode: true
+
 read:
   - doc/home.md
-  - examples/mobile_weather_app/happy_path_test.clj
-  - examples/mobile_weather_app/open-weather-response.json
-  - examples/mobile_weather_app/weather-model.edn
-  - examples/mobile_weather_app/weather_domain.cljc
-  - examples/mobile_weather_app/weather_registry.cljc
+#  - examples/mobile_weather_app/happy_path_test.clj
+#  - examples/mobile_weather_app/open-weather-response.json
+#  - examples/mobile_weather_app/weather-model.edn
+#  - examples/mobile_weather_app/weather_domain.cljc
+#  - examples/mobile_weather_app/weather_registry.cljc
+#  - src/io/nextdoc/sketch/sync.clj
+#  - src/io/nextdoc/sketch/watcher.clj
   - src/io/nextdoc/sketch/core.clj
   - src/io/nextdoc/sketch/diagrams.clj
   - src/io/nextdoc/sketch/run.clj
   - src/io/nextdoc/sketch/state.clj
-  - src/io/nextdoc/sketch/sync.clj
   - src/io/nextdoc/sketch/test.clj
-  - src/io/nextdoc/sketch/watcher.clj
   - src/io/nextdoc/sketch/browser/diagram_app.cljs
   - src/io/nextdoc/sketch/browser/host-page.css
