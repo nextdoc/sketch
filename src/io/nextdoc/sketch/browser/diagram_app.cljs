@@ -156,7 +156,9 @@
    This is triggered when a user clicks on a message in the sequence diagram,
    and causes the state panel to update showing the state after that message."
   [emit-count]
-  (swap! app-state assoc :emit-count emit-count))
+  (swap! app-state assoc 
+         :emit-count emit-count
+         :selected-message emit-count))
 
 (def tooltip-debounce-delay 50) ; Small delay to prevent flickering
 
@@ -192,7 +194,8 @@
    Sets up click handlers for actors and messages.
    Returns a reagent component that manages the diagram lifecycle."
   [_]
-  (let [container-ref (atom nil)]
+  (let [container-ref (atom nil)
+        selected-message-ref (atom nil)] ; Store reference to the currently selected message
     (r/create-class
       {:display-name "mermaid diagram"
        :reagent-render
@@ -220,12 +223,21 @@
                                     (fn [_] (toggle-actor! n)))))
              ; add event click handlers
              (let [counter (atom 0)]
-               (doseq [stepMessage (.getElementsByClassName svg-node "messageText")]
+               (doseq [messageText (.getElementsByClassName svg-node "messageText")]
                  (let [emit-number @counter]
-                   (.addEventListener stepMessage
+                   (.addEventListener messageText
                                       "click"
-                                      (fn [_] (set-emitted-msg-count! emit-number)))
+                                      (fn [_]
+                                        ; Remove class from previously selected message
+                                        (when-let [prev @selected-message-ref]
+                                          (.remove (.-classList prev) "selected-message"))
+                                        ; Add class to the text element itself
+                                        (.add (.-classList messageText) "selected-message")
+                                        (reset! selected-message-ref messageText)
+                                        ; Update app state
+                                        (set-emitted-msg-count! emit-number)))
                    (swap! counter inc))))
+             ; Add hover event handlers
              (let [counter (atom 0)]
                (doseq [stepMessage (.getElementsByClassName svg-node "messageText")]
                  (let [emit-number @counter]

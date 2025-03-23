@@ -185,3 +185,10 @@ svg text.actor, svg text.messageText {
     color: #1740FF;
     font-style: italic;
 }
+
+/* Selected message styling */
+.selected-message {
+  font-weight: bolder !important;
+  fill: #1740FF !important;
+  font-size: 1.1em !important;
+}
