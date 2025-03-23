@@ -17,7 +17,7 @@ The state diagrams are zoomable using your mouse wheel and can be dragged.
 
 <a href="https://nextdoc.github.io/sketch/mobile-weather-app/happy-path-test.html">
   <!-- TODO switch sha to tag after next release -->
-  <img src="https://cdn.jsdelivr.net/gh/nextdoc/sketch@06f553dc5b50306719e33f04f052384297d323c1/doc/example1.png" alt="Example diagram showing network interactions" class="diagram-image">
+  <img src="https://cdn.jsdelivr.net/gh/nextdoc/sketch@08fa53e97c627d77baf26beeb63c7fc8711aa2fdf/doc/example1.png" alt="Example diagram showing network interactions" class="diagram-image">
 </a>
 
 This provides an effective thinking / storytelling / discussion tool.
