@@ -228,9 +228,12 @@
                          lambda-push-weather-alert
                          app-weather-change])
 
-; step thunks with indirection so exceptions can provide location
-(def test-steps (mapv #(ns-resolve *ns* %)
-                      (concat ['reset-system!] app-start-chapter)))
+(defn with-indirection
+  "so exceptions can provide location"
+  [step-sym]
+  (ns-resolve *ns* step-sym))
+
+(def test-steps (mapv with-indirection (concat ['reset-system!] app-start-chapter)))
 
 (deftest happy-path
   (->> {:steps                     test-steps
