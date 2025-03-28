@@ -9,34 +9,34 @@
 1. Define your network model in an EDN file (e.g., `my-system-model.edn`):
 
 ```clojure
-{:locations {:web-client {:id :web-client
-                          :name "Web Browser"
-                          :state {:local-storage {:id :local-storage
-                                                  :type :associative
-                                                  :entities #{:user :preferences}}}
-                          :actors {:spa {:id :spa
-                                         :name "Single Page App"
-                                         :ports {:http {:id :http
-                                                        :name "HTTP Client"}}}}}}
-             :server {:id :server
-                      :name "Backend Server"
-                      :state {:database {:id :database
-                                         :type :database
-                                         :entities #{:user :order}}}
-                      :actors {:api {:id :api
-                                     :name "REST API"
-                                     :ports {:endpoints {:id :endpoints
-                                                         :name "HTTP Endpoints"}}}}}}}
+{:locations       {:web-client {:id     :web-client
+                                :name   "Web Browser"
+                                :state  {:local-storage {:id       :local-storage
+                                                         :type     :associative
+                                                         :entities #{:user :preferences}}}
+                                :actors {:spa {:id    :spa
+                                               :name  "Single Page App"
+                                               :ports {:http {:id   :http
+                                                              :name "HTTP Client"}}}}}}
+ :server          {:id     :server
+                   :name   "Backend Server"
+                   :state  {:database {:id       :database
+                                       :type     :database
+                                       :entities #{:user :order}}}
+                   :actors {:api {:id    :api
+                                  :name  "REST API"
+                                  :ports {:endpoints {:id   :endpoints
+                                                      :name "HTTP Endpoints"}}}}}
 
- :domain-entities {:user {:id :user
-                          :name "User details"}
-                   :order {:id :order
+ :domain-entities {:user  {:id   :user
+                           :name "User details"}
+                   :order {:id   :order
                            :name "Order information"}}
-                           
- :data-flow [{:description "Login request"
-              :from #ref [:locations :web-client :actors :spa :ports :http]
-              :to #ref [:locations :server :actors :api :ports :endpoints]
-              :request :login}]}
+
+ :data-flow       [{:description "Login request"
+                    :from        #ref [:locations :web-client :actors :spa :ports :http]
+                    :to          #ref [:locations :server :actors :api :ports :endpoints]
+                    :request     :login}]}
 ```
 
 2. Create a registry namespace containing your schemas:
@@ -46,10 +46,9 @@
   (:require [malli.core :as m]
             [malli.util :as mu]))
 
+;; do not edit keys, only values
 (def generated
-  ;; Will be populated by Sketch watcher
-  {:server-api/login-request [:map]
-   :server-api/login-response [:map]})
+  {})
 
 (def domain-schema
   {:my-system/user [:map
@@ -97,8 +96,7 @@
                          :payload user}]}))})
                          
 (deftest login-flow
-  (->> {:steps [{:reset (fn [system] system)}
-                login-request
+  (->> {:steps [login-request
                 login-response]
         :diagram-name "my-system/login-flow"
         :registry (model/registry)
