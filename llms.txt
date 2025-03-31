@@ -1,6 +1,8 @@
 # Sketch: Network Modeling Tool
 
-> Sketch is a Clojure library for modeling and testing distributed systems before implementation. It allows you to define actors, state stores, and the communication between them, generating visual sequence diagrams and validating data flow with Malli schemas.
+> Sketch is a Clojure library for modeling and testing distributed systems before implementation. It allows you to
+> define actors, state stores, and the communication between them, generating visual sequence diagrams and validating data
+> flow with Malli schemas.
 
 ## Usage
 
@@ -62,54 +64,77 @@
          (mu/schemas)))
 ```
 
-3. Create a test to model system behavior:
+3. Start the watcher to sync and maintain the model with the registry:
+
+```clojure
+(require 'io.nextdoc.sketch.watcher)
+(io.nextdoc.sketch.watcher/start! {:model-path    "my-system/model.edn"
+                                   :registry-path "src/my_system/registry.cljc"})
+```
+
+4. Create a test to model system behavior:
 
 ```clojure
 (ns my-system.flow-test
   (:require [clojure.test :refer :all]
             [io.nextdoc.sketch.run :as sketch-run]
             [io.nextdoc.sketch.state :as sketch-state]
-            [io.nextdoc.sketch.watcher :as sketch-watcher]
             [my-system.registry :as model]))
 
+(defn reset-system! []
+  {:reset (fn [system] (swap! system assoc :fixtures {}))})
+
 (defn login-request []
-  {:actor :web-client/spa
-   :action "User submits login form"
+  {:actor   :web-client/spa
+   :action  "User submits login form"
    :handler (fn [{:keys [state]}]
               (let [credentials {:username "user1" :password "secret"}]
-                {:emit [{:to :server/api
+                {:emit [{:to      :server/api
                          :request :login
                          :payload credentials}]}))})
 
 (defn login-response []
-  {:actor :server/api
-   :action "Server validates credentials and responds"
+  {:actor   :server/api
+   :action  "Server validates credentials and responds"
    :handler (fn [{:keys [state messages]}]
               (let [request (-> messages last :message :payload)
-                    user {:id (random-uuid)
+                    user {:id       (random-uuid)
                           :username (:username request)
-                          :email "user1@example.com"}]
+                          :email    "user1@example.com"}]
                 (sketch-state/put-record! (:database state) :users user)
-                {:emit [{:to :web-client/spa
-                         :request :login
+                {:emit [{:to        :web-client/spa
+                         :request   :login
                          :direction :response
-                         :payload user}]}))})
-                         
+                         :payload   user}]}))})
+
+(defn with-indirection
+  "so exceptions can provide location"
+  [step-sym]
+  (ns-resolve *ns* step-sym))
+
+(def login-chapter '[login-request login-response])
+
+(def full-story (mapv with-indirection (concat '[reset-system!]
+                                               login-chapter)))
+
 (deftest login-flow
-  (->> {:steps [login-request
-                login-response]
-        :diagram-name "my-system/login-flow"
-        :registry (model/registry)
-        :model "my-system/model.edn"}
-       (sketch-run/run-steps!)))
+         (->> {:steps        full-story
+               :diagram-name "my-system/login-flow"
+               :registry     (model/registry)
+               :model        "my-system/model.edn"}
+              (sketch-run/run-steps!)))
 ```
 
-4. Start the watcher to sync your model with the registry:
+## Composability
 
-```clojure
-(sketch-watcher/start! {:model-path "my-system/model.edn"
-                        :registry-path "src/my_system/registry.cljc"})
-```
+Tests can maximise composability so that variations are easy to create.
+
+The units of composability are:
+
+- steps: shared steps can be located/used from a shared namespace
+- chapters: shared sequences of steps can be located/used from a shared namespace
+
+When refactoring chapters, remove empty chapters of steps up and no longer in them.
 
 ## API Reference
 
@@ -168,7 +193,7 @@ You can create custom state stores by implementing the `StateDatabase` and `Stat
   (delete-record! [this entity-type id] ...)
   (clear! [this] ...)
   (as-map [this] ...)
-  
+
   StateAssociative
   (get-value [this id] ...)
   (put-value! [this id value] ...)
@@ -176,20 +201,12 @@ You can create custom state stores by implementing the `StateDatabase` and `Stat
   (as-lookup [this] ...))
 ```
 
-### Working with Diagrams
-
-Sketch generates sequence diagrams in HTML format. View these in your browser to:
-
-1. Click on actors to show their state
-2. Click on messages to see state at that point
-3. Zoom and pan the diagram for better visibility
-
 ### Data Flow Validation
 
 All messages between actors are validated against Malli schemas. Configure validation with:
 
 ```clojure
 {:closed-data-flow-schemas? true  ; Strict schema validation
- :closed-state-schemas? true      ; Strict state validation
- :state-schemas-ignored #{:some/schema}} ; Schemas to skip validation
+ :closed-state-schemas?     true      ; Strict state validation
+ :state-schemas-ignored     #{:some/schema}} ; Schemas to skip validation
 ```
