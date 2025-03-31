@@ -249,13 +249,13 @@
     (log/info "updating diagram artifacts:" file-name)
     (io/make-parents (io/file file-name))
     (spit (str file-name ".mmd") diagram)
-    (spit (str file-name ".html") (-> {:diagram diagram
-                                       :title   test-name
-                                       :states  states
-                                       :model   model-parsed
+    (spit (str file-name ".html") (-> {:diagram      diagram
+                                       :title        test-name
+                                       :states       states
+                                       :model        model-parsed
                                        :step-actions step-actions ; Added step actions
-                                       :dev?    dev?
-                                       :tag     "r0.1.31"}
+                                       :dev?         dev?
+                                       :tag          "r0.1.31"}
                                       (sequence-diagram-page)
                                       (html)))
     (log/info success-string)))
@@ -318,8 +318,10 @@
                                  (read-config))
                          (throw (ex-info "model not found" {:source model})))
         system (atom empty-system)
-        step-actions (atom []) ; Added to collect step actions
+        step-actions (atom [])                              ; Added to collect step actions
         run-step! (fn run-step! [step]
+                    (when (nil? step)
+                      (throw (ex-info "empty step!" {})))
                     (let [step-result (step)                ; invoke step thunk to access it's config
                           {:keys     [reset action before handler after]
                            actor-key :actor} step-result]
