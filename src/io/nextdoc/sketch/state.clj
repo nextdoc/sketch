@@ -30,6 +30,8 @@
   (as-lookup [this]
     "Returns the entire lookup store state as a map"))
 
+; TODO Split into two. https://github.com/nextdoc/sketch/issues/29
+;  Provide factory function which receives past model and state key to dispatch to correct implementation.
 (defn atom-state-store
   []
   (let [database (atom {})

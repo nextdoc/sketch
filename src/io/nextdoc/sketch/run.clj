@@ -2,7 +2,6 @@
   (:require [aero.core :refer [read-config]]
             [clojure.data.json :as json]
             [clojure.java.io :as io]
-            [clojure.pprint :as pprint]
             [clojure.string :as str]
             [com.rpl.specter :refer [ALL MAP-VALS collect-one multi-path select select-first]]
             [editscript.core :as edit]
@@ -140,8 +139,8 @@
       (when-let [ex (m/explain schema (:payload message))]
         (let [error (ex-info "invalid message payload" {:explain ex})]
           (log/warn (ex-message error))
-          (pprint/pprint message)
-          (pprint/pprint (m/form (m/deref schema)))
+          ;(pprint/pprint message)
+          ;(pprint/pprint (me/humanize ex))
           (mp/explain schema (:payload message))
           (throw error)))
       (catch ExceptionInfo ei
@@ -421,6 +420,7 @@
                                                         :associative (state/as-lookup v))))
                                          {})))]
 
+    ; Not using a reduce because the step handler functions can side effect for state changes
     (doseq [step steps]
       (let [all-messages #(get-in @system [:messages :all])
             message-count-before (count (all-messages))]
