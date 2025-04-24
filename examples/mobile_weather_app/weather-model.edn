@@ -1,10 +1,11 @@
 {; :locations are all the actors in the network
  :locations       {:iphone       {:id     :iphone
                                   :name   "Mobile Device"
-                                  :state  {:core-data {:id       :core-data
-                                                       :type     :database
-                                                       :name     "Core Data Services"
-                                                       :entities #{:user :city}}}
+                                  :state  {:core-data {:id           :core-data
+                                                       :type         :database
+                                                       :name         "Core Data Services"
+                                                       :entities     #{:user :city}
+                                                       :primary-keys {:users :user-id}}}
                                   :actors {:weather-app {:id    :weather-app
                                                          :name  "weather app installed from App Store"
                                                          :ports {:http-client {:id   :http-client
@@ -15,10 +16,11 @@
                                                  :name     "Lambda environment variables"
                                                  :type     :associative
                                                  :entities #{:env}}
-                                           :ddb {:id       :ddb
-                                                 :name     "Dynamodb"
-                                                 :type     :database
-                                                 :entities #{:city :user}}}
+                                           :ddb {:id           :ddb
+                                                 :name         "Dynamodb"
+                                                 :type         :database
+                                                 :entities     #{:city :user}
+                                                 :primary-keys {:users :user-id}}}
                                   :actors {:lambda {:id    :lambda
                                                     :name  "Lambda Rest APIs serving http requests/responses"
                                                     :ports {:handler {:id   :handler

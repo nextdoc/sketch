@@ -1,17 +1,19 @@
 (ns mobile-weather-app.happy-path-test
   (:require [clojure.test :refer :all]
-            [mobile-weather-app.weather-domain :as domain]
-            [io.nextdoc.sketch.state :as sketch-state]
             [io.nextdoc.sketch.run :as sketch-run]
+            [io.nextdoc.sketch.state :as sketch-state]
             [io.nextdoc.sketch.watcher :as sketch-watcher]
             [malli.dev :as md]
             [malli.dev.pretty :as pretty]
+            [mobile-weather-app.weather-domain :as domain]
             [mobile-weather-app.weather-registry :as model]
             [taoensso.timbre :as log]))
 
+(def watcher-args {:model-path    "mobile_weather_app/weather-model.edn"
+                   :registry-path "examples/mobile_weather_app/weather_registry.cljc"})
+
 (comment
-  (sketch-watcher/start! {:model-path    "mobile_weather_app/weather-model.edn"
-                          :registry-path "examples/mobile_weather_app/weather_registry.cljc"})
+  (sketch-watcher/start! watcher-args)                      ; << eval this to start model watcher
   (sketch-watcher/stop!))
 
 (md/start! {:reporter (pretty/thrower)})
@@ -24,7 +26,7 @@
                 (is (every? empty? (vals initial-data))
                     "no data when app starts")))
    :handler (fn [{:keys [state fixtures]}]
-              (let [new-user {:id        (random-uuid)
+              (let [new-user {:user-id   (random-uuid)      ; note: not using Sketch default :id keyword for primary key
                               :user-name (:user-name fixtures)}]
                 ; write to local storage
                 (sketch-state/put-record! (:core-data state) :users new-user)
@@ -49,7 +51,7 @@
                     matches (sketch-state/query (:ddb state) :user (comp #{user-name} :user-name))
                     user (-> user-name
                              (domain/user-with-status matches)
-                             (assoc :id (random-uuid)))]
+                             (assoc :user-id (random-uuid)))]
                 (sketch-state/put-record! (:ddb state) :users user)
                 {:emit [{:to        :iphone/weather-app
                          :request   :user-info
@@ -211,7 +213,13 @@
 (defn with-config
   [m]
   (merge m {:model                 "mobile_weather_app/weather-model.edn"
-            :state-store           (fn [id] (sketch-state/atom-state-store))
+
+            ; simple state store factory, when only needing store id to decide how to emulate state
+            ; :state-store           (fn [id] (sketch-state/atom-state-store))
+
+            ; alternative store factory with more runtime context
+            :state-store-context   sketch-state/state-store-with-context
+
             :registry              (model/registry)
             :state-schemas-ignored #{}}))
 

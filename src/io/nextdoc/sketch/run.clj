@@ -6,10 +6,12 @@
             [com.rpl.specter :refer [ALL MAP-VALS collect-one multi-path select select-first]]
             [editscript.core :as edit]
             [hiccup.core :refer [html]]
+            [io.nextdoc.sketch.core :as core]
             [io.nextdoc.sketch.diagrams :refer [flow-sequence]]
             [io.nextdoc.sketch.state :as state]
             [malli.core :as m]
             [malli.dev.pretty :as mp]
+            [malli.error :as me]
             [malli.util :as mu]
             [taoensso.timbre :as log])
   (:import (clojure.lang ExceptionInfo)))
@@ -157,27 +159,42 @@
   (let [{from-actor    :actor
          from-location :location} (actor-meta model-parsed actor-key)]
     (doseq [[k store] (:state handler-context)]
-      (when-not (zero? (count (state/as-map store)))
-        (let [schema-namespace (str (name (:id from-location)) "-" (name (:id from-actor)))
-              schema-name (name k)
-              schema-keyword (keyword schema-namespace schema-name)]
-          (when-not (contains? state-schemas-ignored schema-keyword)
-            (try
-              (let [schema (cond-> (m/deref-recursive (m/schema schema-keyword {:registry registry}))
-                                   closed-state-schemas? (mu/closed-schema))
-                    state (case (select-first [:locations (:id from-location) :state k :type] model-parsed)
-                            :associative (state/as-lookup store)
-                            :database (state/as-map store))]
-                (when-let [ex (m/explain schema state)]
-                  (let [error (ex-info "invalid storage" {:explain ex})]
-                    (log/error (ex-message error))
-                    (clojure.pprint/pprint state)
-                    (mp/explain schema state)
-                    (throw error))))
-              (catch ExceptionInfo ei
-                (if (= ::m/invalid-schema (:type (ex-data ei)))
-                  (swap! system update :missing-state-schemas conj schema-keyword)
-                  (throw ei))))))))))
+      (let [store-type (select-first [:locations (:id from-location) :state k :type] model-parsed)
+            state (case store-type
+                    :associative (state/as-lookup store)
+                    :database (state/as-map store))]
+        (when-not (zero? (count state))
+          (let [schema-namespace (str (name (:id from-location)) "-" (name (:id from-actor)))
+                schema-name (name k)
+                schema-keyword (keyword schema-namespace schema-name)]
+            (when-not (contains? state-schemas-ignored schema-keyword)
+              (try
+                (let [schema (cond-> (m/deref-recursive (m/schema schema-keyword {:registry registry}))
+                                     closed-state-schemas? (mu/closed-schema))]
+
+                  ; Check and warn that schemas for state stores match Sketch expectations.
+                  (case store-type
+                    :database
+                    (when-let [invalid-database-schemas (->> (m/children schema)
+                                                             (filter (fn [schema-entry]
+                                                                       (not= :set (m/type (last schema-entry)))))
+                                                             (map first)
+                                                             (seq))]
+                      (log/warn ":database schema in your registry must contain :set schemas" k invalid-database-schemas))
+                    :associative
+                    (when-not (contains? #{:map :map-of} (m/type schema))
+                      (log/warn ":associative schema in your registry must be a :map or :map-of schema" k)))
+
+                  (when-let [ex (m/explain schema state)]
+                    (let [error (ex-info "invalid storage" {:explain ex})]
+                      (log/error (ex-message error))
+                      (clojure.pprint/pprint state)
+                      (mp/explain schema state)
+                      (throw error))))
+                (catch ExceptionInfo ei
+                  (if (= ::m/invalid-schema (:type (ex-data ei)))
+                    (swap! system update :missing-state-schemas conj schema-keyword)
+                    (throw ei)))))))))))
 
 (defn log-todos!
   [system]
@@ -304,7 +321,7 @@
 
 (defn run-steps!
   "the entry point to run a sketch test"
-  [{:keys [steps model state-store registry state-schemas-ignored middleware
+  [{:keys [steps model state-store state-store-context registry state-schemas-ignored middleware
            diagram-dir diagram-name diagram-config verbose?
            closed-data-flow-schemas? closed-state-schemas? dev?]
     :or   {diagram-dir               "target/sketch-diagrams"
@@ -316,6 +333,13 @@
   (let [model-parsed (or (some-> (io/resource model)
                                  (read-config))
                          (throw (ex-info "model not found" {:source model})))
+        ; Same validation as applied when using the watcher to sync the model to a generated registry.
+        _ (when-let [model-errors (-> :domain
+                                      (m/deref-recursive {:registry core/model-registry})
+                                      (m/explain model-parsed)
+                                      (me/humanize))]
+            (log/warn "Invalid model. Errors follow...")
+            (println model-errors))
         system (atom empty-system)
         step-actions (atom [])                              ; Added to collect step actions
         run-step! (fn run-step! [step]
@@ -336,19 +360,28 @@
                               from-keyword (keyword (name (:id from-location))
                                                     (name (:id from-actor)))
                               ; Expose state specific to the actors location to its handler
-                              actor-state-stores (reduce
-                                                   (fn [acc state-meta]
-                                                     (assoc acc (:id state-meta)
-                                                                (or
-                                                                  ; already created/wrapped
-                                                                  (-> @system :state-stores (get (:id state-meta)))
-                                                                  ; lazy create/wrap
-                                                                  (let [new-store (state-store-wrapped (state-store (:id state-meta)) state-meta)]
-                                                                    (swap! system assoc-in [:state-stores (:id state-meta)] new-store)
-                                                                    new-store))))
-                                                   {}
-                                                   ; location specific states
-                                                   (vals (:state from-location)))
+                              actor-state-stores
+                              (reduce
+                                (fn [acc state-meta]
+                                  (assoc acc (:id state-meta)
+                                             (or
+                                               ; already created/wrapped
+                                               (-> @system :state-stores (get (:id state-meta)))
+                                               ; lazy create/wrap
+                                               (let [new-store (cond
+                                                                 state-store (-> (:id state-meta)
+                                                                                 (state-store)
+                                                                                 (state-store-wrapped state-meta))
+                                                                 state-store-context (-> {:id           (:id state-meta)
+                                                                                          :model-parsed model-parsed}
+                                                                                         (state-store-context)
+                                                                                         (state-store-wrapped state-meta))
+                                                                 :else (throw (ex-info "missing state store factory fn in config" {})))]
+                                                 (swap! system assoc-in [:state-stores (:id state-meta)] new-store)
+                                                 new-store))))
+                                {}
+                                ; location specific states
+                                (vals (:state from-location)))
                               handler-context {:state    actor-state-stores
                                                :messages (get-in @system [:messages actor-key])
                                                :fixtures (get-in @system [:fixtures (:id from-location)])}

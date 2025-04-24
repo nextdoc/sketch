@@ -1,6 +1,7 @@
 (ns ^{:doc "Emulation of persisted state for tests"}
   io.nextdoc.sketch.state
-  (:require [com.rpl.specter :refer [ALL select select-first]]))
+  (:require
+    [com.rpl.specter :refer [ALL MAP-VALS collect-one select must select select-first]]))
 
 (defprotocol StateDatabase
   "operations that a typical database can perform"
@@ -33,43 +34,55 @@
 ; TODO Split into two. https://github.com/nextdoc/sketch/issues/29
 ;  Provide factory function which receives past model and state key to dispatch to correct implementation.
 (defn atom-state-store
-  []
-  (let [database (atom {})
-        lookup (atom {})]
-    (reify
-      StateAssociative
-      (get-value [_ id]
-        (get @lookup id))
-      (put-value! [_ id value]
-        (swap! lookup assoc id value))
-      (delete-value! [_ id]
-        (swap! lookup dissoc id))
-      (as-lookup [_]
-        @lookup)
-      StateDatabase
-      (create-table [_ entity-type]
-        (when (nil? (get @database entity-type))
-          (swap! database assoc entity-type #{})))
-      (get-record [_ entity-type id]
-        (select-first [entity-type ALL (comp #{id} :id)] @database))
-      (query [_ entity-type predicate]
-        (select [entity-type ALL predicate] @database))
-      (put-record! [_ entity-type record]
-        ;; Check if table exists
-        (when-not (contains? @database entity-type)
-          (throw (ex-info "Table does not exist" {:entity-type entity-type})))
-        ;; Check if record has id field
-        (when-not (contains? record :id)
-          (throw (ex-info "Record must have an :id field" {:record record})))
-        (swap! database update entity-type
-               (fn upsert-by-id [db]
-                 (conj
-                   (->> db
-                        (remove (comp #{(:id record)} :id))
-                        (set))
-                   record))))
-      (delete-record! [_ entity-type id]
-        (swap! database update entity-type (fn [db]
-                                             (->> db (remove (comp #{id} :id)) set))))
-      (clear! [_] (reset! database {}))
-      (as-map [_] @database))))
+  ([] (atom-state-store {}))
+  ([{:keys [id primary-keys]}]
+   (let [database (atom {})
+         lookup (atom {})]
+     (reify
+       StateAssociative
+       (get-value [_ id]
+         (get @lookup id))
+       (put-value! [_ id value]
+         (swap! lookup assoc id value))
+       (delete-value! [_ id]
+         (swap! lookup dissoc id))
+       (as-lookup [_]
+         @lookup)
+       StateDatabase
+       (create-table [_ entity-type]
+         (when (nil? (get @database entity-type))
+           (swap! database assoc entity-type #{})))
+       (get-record [_ entity-type id]
+         (select-first [entity-type ALL (comp #{id} :id)] @database))
+       (query [_ entity-type predicate]
+         (select [entity-type ALL predicate] @database))
+       (put-record! [_ entity-type record]
+         ;; Check if table exists
+         (when-not (contains? @database entity-type)
+           (throw (ex-info "Table does not exist" {:entity-type entity-type})))
+         ;; Check if record has primary key
+         (when-not (contains? record (get-in primary-keys [id entity-type] :id))
+           (throw (ex-info "Record must have an :id field" {:record record})))
+         (swap! database update entity-type
+                (fn upsert-by-id [db]
+                  (conj
+                    (->> db
+                         (remove (comp #{(:id record)} :id))
+                         (set))
+                    record))))
+       (delete-record! [_ entity-type id]
+         (swap! database update entity-type (fn [db]
+                                              (->> db (remove (comp #{id} :id)) set))))
+       (clear! [_] (reset! database {}))
+       (as-map [_] @database)))))
+
+(defn state-store-with-context
+  "return the atom state store but with extra features such as:
+   - Primary key for database records can be customised in the model
+  "
+  [{:keys [id model-parsed]}]
+  (let [pks (->> model-parsed
+                 (select [:locations MAP-VALS :state MAP-VALS (collect-one :id) (must :primary-keys)])
+                 (into (sorted-map)))]
+    (atom-state-store {:id           id
+                       :primary-keys pks})))

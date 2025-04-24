@@ -39,7 +39,10 @@
 
 (def domain-schema
   {:weather/user [:map
-                  [:id :uuid]
+                  [:user-id {:description "Primary key used as the partition key in DynamoDB"}
+                   ; This primary key demonstrates how alternative primary keys can be specified for state in the model
+                   ; The happy path test uses the more sophisticated state store to support this
+                   :uuid]
                   [:user-name :string]
                   [:status {:optional true} [:enum :active :blocked]]
                   [:latitude {:optional true} :float]
