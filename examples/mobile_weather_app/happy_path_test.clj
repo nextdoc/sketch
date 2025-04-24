@@ -10,8 +10,8 @@
             [taoensso.timbre :as log]))
 
 (comment
-  (sketch-watcher/start! {:model-path    "billing-sketch-meta.edn"
-                          :registry-path "src/cursive/actor_model.cljc"})
+  (sketch-watcher/start! {:model-path    "mobile_weather_app/weather-model.edn"
+                          :registry-path "examples/mobile_weather_app/weather_registry.cljc"})
   (sketch-watcher/stop!))
 
 (md/start! {:reporter (pretty/thrower)})
