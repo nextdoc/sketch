@@ -15,8 +15,9 @@
 
 (defn generate!
   [source target]
-  (let [domain-meta (-> (io/resource source)
-                        (aero/read-config))
+  (let [domain-meta (or (-> (io/resource source)
+                            (aero/read-config))
+                        (throw (ex-info "model not found" {:source source})))
         errors (me/humanize (m/explain :domain domain-meta
                                        {:registry core/model-registry}))
         data-flow-keys (->> [core/data-flow-events core/data-flow-pull-packets]
@@ -48,7 +49,8 @@
                                 (z/find z/next (comp #{'generated} z/sexpr))
                                 (z/right))
           sorted (sync/sort-registry generated-map)]
-      (spit target (z/root-string sorted)))))
+      (spit target (z/root-string sorted))
+      (log/debug "updated" target))))
 
 (defn start!
   [{:keys [model-path registry-path]}]                      ; TODO option to reload registry after gen
