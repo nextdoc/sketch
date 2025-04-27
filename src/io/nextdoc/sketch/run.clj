@@ -18,7 +18,7 @@
 
 (defn state-store-wrapped
   "A delegate state store implementation that creates tables and TODO validates types for all entities persisted in the store"
-  [impl {:keys [id entities]}]
+  [impl {:keys [entities]}]
   (doseq [entity entities]
     (state/create-table impl (keyword (str (name entity) "s"))))
   (reify
@@ -377,6 +377,8 @@
                                                                                          (state-store-context)
                                                                                          (state-store-wrapped state-meta))
                                                                  :else (throw (ex-info "missing state store factory fn in config" {})))]
+                                                 (when verbose?
+                                                   (println "Creating state store" (:id state-meta)))
                                                  (swap! system assoc-in [:state-stores (:id state-meta)] new-store)
                                                  new-store))))
                                 {}
@@ -428,16 +430,17 @@
                                                      :handler-context       handler-context})
                             (when after (after handler-context))
                             (catch ExceptionInfo ei
-                              (let [cursive-link (tagged-literal 'cursive/node
-                                                                 {:presentation [{:text  "Jump to failing step -> "
-                                                                                  :color :link}
-                                                                                 {:text  (str (:name (meta step)))
-                                                                                  :color :link}]
-                                                                  :action       :navigate
-                                                                  :file         (:file (meta step))
-                                                                  :line         (:line (meta step))
-                                                                  :column       0})]
-                                (throw (ex-info "step failed" {:cursive-jump-link cursive-link} ei)))))))))
+                              (let [cursive-link (when (meta step)
+                                                   (tagged-literal 'cursive/node
+                                                                   {:presentation [{:text  "Jump to failing step -> "
+                                                                                    :color :link}
+                                                                                   {:text  (str (:name (meta step)))
+                                                                                    :color :link}]
+                                                                    :action       :navigate
+                                                                    :file         (:file (meta step))
+                                                                    :line         (:line (meta step))
+                                                                    :column       0}))]
+                                (throw (ex-info "step failed" (if cursive-link {:cursive-jump-link cursive-link} {}) ei)))))))))
         lookup-state-store-type (->> model-parsed
                                      (select [:locations MAP-VALS :state MAP-VALS])
                                      (map (juxt :id :type))

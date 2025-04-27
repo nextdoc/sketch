@@ -35,8 +35,9 @@
 ;  Provide factory function which receives past model and state key to dispatch to correct implementation.
 (defn atom-state-store
   ([] (atom-state-store {}))
-  ([{:keys [id primary-keys]}]
+  ([{:keys [state-id primary-keys]}]
    (let [database (atom {})
+         database-primary-keyword (fn [entity-type] (get-in primary-keys [state-id entity-type] :id))
          lookup (atom {})]
      (reify
        StateAssociative
@@ -52,8 +53,9 @@
        (create-table [_ entity-type]
          (when (nil? (get @database entity-type))
            (swap! database assoc entity-type #{})))
-       (get-record [_ entity-type id]
-         (select-first [entity-type ALL (comp #{id} :id)] @database))
+       (get-record [_ entity-type primary-key]
+         (let [primary-keyword (database-primary-keyword entity-type)]
+           (select-first [entity-type ALL (comp #{primary-key} primary-keyword)] @database)))
        (query [_ entity-type predicate]
          (select [entity-type ALL predicate] @database))
        (put-record! [_ entity-type record]
@@ -61,18 +63,21 @@
          (when-not (contains? @database entity-type)
            (throw (ex-info "Table does not exist" {:entity-type entity-type})))
          ;; Check if record has primary key
-         (when-not (contains? record (get-in primary-keys [id entity-type] :id))
-           (throw (ex-info "Record must have an :id field" {:record record})))
-         (swap! database update entity-type
-                (fn upsert-by-id [db]
-                  (conj
-                    (->> db
-                         (remove (comp #{(:id record)} :id))
-                         (set))
-                    record))))
-       (delete-record! [_ entity-type id]
-         (swap! database update entity-type (fn [db]
-                                              (->> db (remove (comp #{id} :id)) set))))
+         (let [primary-keyword (database-primary-keyword entity-type)]
+           (when-not (contains? record primary-keyword)
+             (throw (ex-info "Record must have a primary key" {:key    primary-keyword
+                                                               :record record})))
+           (swap! database update entity-type
+                  (fn upsert-by-id [db]
+                    (conj
+                      (->> db
+                           (remove (comp #{(get record primary-keyword)} primary-keyword))
+                           (set))
+                      record)))))
+       (delete-record! [_ entity-type primary-key]
+         (let [primary-keyword (database-primary-keyword entity-type)]
+           (swap! database update entity-type (fn [db]
+                                                (->> db (remove (comp #{primary-key} primary-keyword)) set)))))
        (clear! [_] (reset! database {}))
        (as-map [_] @database)))))
 
@@ -84,5 +89,5 @@
   (let [pks (->> model-parsed
                  (select [:locations MAP-VALS :state MAP-VALS (collect-one :id) (must :primary-keys)])
                  (into (sorted-map)))]
-    (atom-state-store {:id           id
+    (atom-state-store {:state-id     id
                        :primary-keys pks})))
