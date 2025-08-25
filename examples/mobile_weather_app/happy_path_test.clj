@@ -16,7 +16,7 @@
   (sketch-watcher/start! watcher-args)                      ; << eval this to start model watcher
   (sketch-watcher/stop!))
 
-(md/start! {:reporter (pretty/thrower)})
+(comment (md/start! {:reporter (pretty/thrower)}))
 
 (defn app-user-info-request []
   {:actor   :iphone/weather-app
