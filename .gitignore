@@ -9,3 +9,4 @@
 /public/
 /doc/home.html
 /.conversations
+/.clj-kondo/.cache
