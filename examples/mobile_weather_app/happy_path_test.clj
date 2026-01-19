@@ -249,7 +249,7 @@
         :diagram-config            {#_#_:actor-order []}    ; :actor-order controls left > right order
         :closed-data-flow-schemas? true
         :closed-state-schemas?     true
-        :dev?                      false}
+        :dev?                      true}
        (with-config)
        (sketch-run/run-steps!)
        (log/with-merged-config (sketch-run/log-config (sketch-run/this-ns)))))

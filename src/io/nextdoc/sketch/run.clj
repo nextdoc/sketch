@@ -4,10 +4,10 @@
             [clojure.java.io :as io]
             [clojure.string :as str]
             [com.rpl.specter :refer [ALL MAP-VALS collect-one multi-path select select-first]]
-            [editscript.core :as edit]
             [hiccup.core :refer [html]]
             [io.nextdoc.sketch.core :as core]
             [io.nextdoc.sketch.diagrams :refer [flow-sequence]]
+            [io.nextdoc.sketch.snapshot-recorder :as recorder]
             [io.nextdoc.sketch.state :as state]
             [malli.core :as m]
             [malli.dev.pretty :as mp]
@@ -444,12 +444,7 @@
                                      (select [:locations MAP-VALS :state MAP-VALS])
                                      (map (juxt :id :type))
                                      (into {}))
-        state-snapshots (atom {:step-snapshots     {}       ;; step-id -> full state snapshot
-                               :messages           []       ;; messages with step-index (for post-processing)
-                               :snapshot-history   []       ;; latest-snapshot-id after each step
-                               :latest-snapshot-id nil
-                               :latest             {}})     ;; for change detection
-        step-index (atom 0)
+        snapshot-recorder (recorder/make-recorder)
         state-edn (fn [] (->> (:state-stores @system)
                               (reduce-kv (fn [acc k v]
                                            (assoc acc k
@@ -465,7 +460,7 @@
       (let [all-messages #(get-in @system [:messages :all])
             message-count-before (count (all-messages))
             step-id (step-id-fn step)
-            current-step-index @step-index]
+            current-step-index (recorder/current-step-index snapshot-recorder)]
         (run-step! step)
         (let [state-after (state-edn)
               messages-after (all-messages)
@@ -473,65 +468,31 @@
               messages-emitted (- message-count-after message-count-before)
               new-messages (take-last messages-emitted messages-after)]
 
-          ;; Store full snapshot if state changed, update latest-snapshot-id
-          (let [{:keys [latest]} @state-snapshots
-                state-changed? (not= state-after latest)]
-            (when (and step-id state-changed?)
-              (swap! state-snapshots update :step-snapshots assoc step-id state-after)
-              (swap! state-snapshots assoc :latest state-after)
-              (swap! state-snapshots assoc :latest-snapshot-id step-id)))
+          ;; Record state change if any
+          (recorder/record-state-change! snapshot-recorder step-id state-after)
 
-          ;; Record snapshot-history: what was latest-snapshot-id after this step
-          (swap! state-snapshots update :snapshot-history conj (:latest-snapshot-id @state-snapshots))
+          ;; Record step completion (updates snapshot-history and step-index)
+          (recorder/record-step-complete! snapshot-recorder)
 
-          ;; Record messages with their step-index (snapshot-id assigned in post-processing)
+          ;; Record messages with their step-index
           (when (pos-int? messages-emitted)
             (doseq [msg new-messages]
-              (swap! state-snapshots update :messages conj
-                     {:step-index current-step-index
-                      :data-flow  (:data-flow msg)
-                      :message    (:message msg)})))
+              (recorder/record-message! snapshot-recorder current-step-index msg))))))
 
-          (swap! step-index inc))))
-    ;; Post-process: assign snapshot-ids with shifted logic
-    ;; Message N shows state just before message N+1 is emitted (accumulated state view)
-    (let [{:keys [messages snapshot-history]} @state-snapshots
-          messages-with-snapshots
-          (vec (map-indexed
-                 (fn [msg-idx msg]
-                   (let [next-msg (get messages (inc msg-idx))
-                         snapshot-id
-                         (if next-msg
-                           ;; Use snapshot from just before the step that emits next message
-                           (let [next-step-idx (:step-index next-msg)]
-                             (if (pos? next-step-idx)
-                               (get snapshot-history (dec next-step-idx))
-                               ;; Next message emitted at step 0, use its snapshot
-                               (get snapshot-history 0)))
-                           ;; Last message: use the final snapshot
-                           (last snapshot-history))]
-                     (-> msg
-                         (assoc :snapshot-id snapshot-id)
-                         (dissoc :step-index))))
-                 messages))]
-      (swap! state-snapshots assoc :messages messages-with-snapshots))
-    ;; Remove temporary/internal data not needed by app
-    (swap! state-snapshots dissoc :latest :latest-snapshot-id :snapshot-history)
+    ;; Finalize: assign snapshot-ids and prepare for serialization
+    (let [states (recorder/finalize snapshot-recorder)]
 
-    ; TODO cljc hydration fn, shared with reagent app, invariant asserted in CI for all tests
-    (comment (reduce edit/patch {} (:diffs @state-snapshots)))
+      (log/info "post-test actions...")
 
-    (log/info "post-test actions...")
+      (log-todos! system)
 
-    (log-todos! system)
+      (write-sequence-diagram! {:test-ns-str    diagram-name
+                                :diagram-dir    diagram-dir
+                                :diagram-config diagram-config
+                                :system         system
+                                :model-parsed   model-parsed
+                                :states         states
+                                :step-actions   @step-actions
+                                :dev?           dev?})
 
-    (write-sequence-diagram! {:test-ns-str    diagram-name
-                              :diagram-dir    diagram-dir
-                              :diagram-config diagram-config
-                              :system         system
-                              :model-parsed   model-parsed
-                              :states         @state-snapshots
-                              :step-actions   @step-actions ; Pass the collected actions
-                              :dev?           dev?})
-
-    @system))
+      @system)))
