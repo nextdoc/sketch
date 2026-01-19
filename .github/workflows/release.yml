@@ -68,6 +68,7 @@ jobs:
 
       - name: Create and push branch from tag
         run: |
+          git checkout -f  # Discard tracked file changes from tests/npm, keeps untracked app/ artifacts
           INITIAL_COMMIT_SHA="2434633297535796e1390198f5521a9249cb19ab"
           BRANCH_NAME=r${{ github.ref_name }} 
           git fetch origin || echo "No existing remote branches found"          
