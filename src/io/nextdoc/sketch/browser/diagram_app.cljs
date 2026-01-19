@@ -2,9 +2,8 @@
   (:require [cljs.reader :as reader]
             [clojure.set :as set]
             [com.rpl.specter :refer [ALL MAP-KEYS MAP-VALS collect collect-one multi-path select select-first transform]]
-            [editscript.core :as edit]
-            [goog.string :as gstring]
             [goog.functions :as gfun]
+            [goog.string :as gstring]
             [goog.string.format]
             [reagent.core :as r]
             [reagent.dom.client :as rdc]))
@@ -458,25 +457,19 @@
 (defn app
   "Main application component that renders the entire UI.
    Manages the layout with a left panel (sequence diagram) and right panel (state displays).
-   Calculates the current state based on emit-count and diffs.
+   Calculates the current state based on emit-count and snapshot-id lookups.
    Handles errors during rendering with a fallback UI."
   []
   (try
     (let [{:keys [title left-width mermaid emit-count states actors actors-visible store-types settings tag]} @app-state
-          {:keys [diffs message-diffs]} states
-          next-msg-num (inc emit-count)                     ; add 1 to show states after message received, up to next message emitted
-          diffs-applied (nth message-diffs next-msg-num)
-          prev-diffs-applied (if (pos? emit-count)
-                               (nth message-diffs emit-count)
-                               0)
-          states-at-step (when (and emit-count states)
-                           (->> diffs
-                                (take diffs-applied)
-                                (reduce edit/patch {})))
-          prev-states-at-step (when (and emit-count states (pos? emit-count))
-                                (->> diffs
-                                     (take prev-diffs-applied)
-                                     (reduce edit/patch {})))
+          {:keys [step-snapshots messages]} states
+          ;; Get current and previous snapshots by ID lookup
+          current-msg (when emit-count (nth messages emit-count nil))
+          prev-msg (when (and emit-count (pos? emit-count)) (nth messages (dec emit-count) nil))
+          states-at-step (when current-msg
+                           (get step-snapshots (:snapshot-id current-msg)))
+          prev-states-at-step (when prev-msg
+                                (get step-snapshots (:snapshot-id prev-msg)))
           visible-state-stores (mapv (fn [actor]
                                        {:actor  actor
                                         :stores (mapv #(process-store % store-types states-at-step prev-states-at-step)
@@ -522,18 +515,13 @@
                               :table-layout "fixed"}}
              (let [formatted (fn [v] [:pre (-> (with-out-str (cljs.pprint/pprint v))
                                                (clojure.string/replace #"<" "&lt;"))])]
-               (into
-                 [:tbody
-                  [:tr
-                   [:td {:style {:width "100px"}} "msg diffs"]
-                   [:td (formatted message-diffs)]]
-                  [:tr [:td "msg#"] [:td emit-count]]
-                  [:tr [:td "next"] [:td next-msg-num]]
-                  [:tr [:td "diffs"] [:td diffs-applied]]]
-                 (map-indexed (fn [i diff]
-                                [:tr [:td (str "diff-" (inc i))]
-                                 [:td (formatted diff)]])
-                              diffs)))]]]
+               [:tbody
+                [:tr
+                 [:td {:style {:width "100px"}} "current-msg"]
+                 [:td (formatted current-msg)]]
+                [:tr [:td "msg#"] [:td emit-count]]
+                [:tr [:td "snapshot-id"] [:td (:snapshot-id current-msg)]]
+                [:tr [:td "states-at-step"] [:td (formatted states-at-step)]]])]]]
 
         [:div.divider {:onMouseDown start-resizing!}]
 
@@ -614,10 +602,7 @@
                                         (select [:locations MAP-VALS :state MAP-VALS])
                                         (map (juxt :id :type))
                                         (into {}))
-                       states-decoded (-> states
-                                          (reader/read-string)
-                                          ; convert back to EditScript
-                                          (update :diffs #(mapv edit/edits->script %)))
+                       states-decoded (reader/read-string states)
                        ; Parse step actions if provided
                        parsed-actions (when step-actions (js->clj step-actions))]
                    (swap! app-state merge {:tag          tag

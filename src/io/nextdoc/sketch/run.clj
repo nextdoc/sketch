@@ -233,7 +233,6 @@
                              title
                              (json/write-str diagram)
                              (-> states
-                                 (update :diffs #(mapv edit/get-edits %)) ; serializable diffs
                                  (pr-str)
                                  (json/write-str))
                              (-> model
@@ -445,48 +444,79 @@
                                      (select [:locations MAP-VALS :state MAP-VALS])
                                      (map (juxt :id :type))
                                      (into {}))
-        state-snapshots (atom {:latest        {}
-                               :diffs         []
-                               :message-diffs []})
+        state-snapshots (atom {:step-snapshots     {}       ;; step-id -> full state snapshot
+                               :messages           []       ;; messages with step-index (for post-processing)
+                               :snapshot-history   []       ;; latest-snapshot-id after each step
+                               :latest-snapshot-id nil
+                               :latest             {}})     ;; for change detection
+        step-index (atom 0)
         state-edn (fn [] (->> (:state-stores @system)
                               (reduce-kv (fn [acc k v]
                                            (assoc acc k
                                                       (case (lookup-state-store-type k)
                                                         :database (state/as-map v)
                                                         :associative (state/as-lookup v))))
-                                         {})))]
+                                         {})))
+        step-id-fn (fn [step] (when-let [m (meta step)]
+                                (str (:name m))))]
 
     ; Not using a reduce because the step handler functions can side effect for state changes
     (doseq [step steps]
       (let [all-messages #(get-in @system [:messages :all])
-            message-count-before (count (all-messages))]
+            message-count-before (count (all-messages))
+            step-id (step-id-fn step)
+            current-step-index @step-index]
         (run-step! step)
         (let [state-after (state-edn)
               messages-after (all-messages)
               message-count-after (count messages-after)
-              messages-emitted (- message-count-after message-count-before)]
+              messages-emitted (- message-count-after message-count-before)
+              new-messages (take-last messages-emitted messages-after)]
 
-          ; TODO test these variations
-          ;  steps that do not change state
-          ;  steps that do not emit
-          ;  steps that emit > 1 message
-          ;  assert correct :message-diffs
+          ;; Store full snapshot if state changed, update latest-snapshot-id
+          (let [{:keys [latest]} @state-snapshots
+                state-changed? (not= state-after latest)]
+            (when (and step-id state-changed?)
+              (swap! state-snapshots update :step-snapshots assoc step-id state-after)
+              (swap! state-snapshots assoc :latest state-after)
+              (swap! state-snapshots assoc :latest-snapshot-id step-id)))
 
-          ; add diff and new state if changed
-          (let [{:keys [latest]} @state-snapshots]
-            (when (not= state-after latest)
-              (swap! state-snapshots update :diffs conj (edit/diff latest state-after))
-              (swap! state-snapshots assoc :latest state-after)))
-          ; record diffs required for each message
+          ;; Record snapshot-history: what was latest-snapshot-id after this step
+          (swap! state-snapshots update :snapshot-history conj (:latest-snapshot-id @state-snapshots))
+
+          ;; Record messages with their step-index (snapshot-id assigned in post-processing)
           (when (pos-int? messages-emitted)
-            (let [{:keys [diffs]} @state-snapshots
-                  n-msg-diffs (repeat messages-emitted (count diffs))]
-              (swap! state-snapshots update :message-diffs into n-msg-diffs))))))
-    ; add an extra msg-diff after the last message because the msg click
-    ; applies diff count for the following msg i.e. last msg needs a fake entry
-    (swap! state-snapshots update :message-diffs conj (count (:diffs @state-snapshots)))
-    ; remove internal data not needed by app
-    (swap! state-snapshots dissoc :latest)
+            (doseq [msg new-messages]
+              (swap! state-snapshots update :messages conj
+                     {:step-index current-step-index
+                      :data-flow  (:data-flow msg)
+                      :message    (:message msg)})))
+
+          (swap! step-index inc))))
+    ;; Post-process: assign snapshot-ids with shifted logic
+    ;; Message N shows state just before message N+1 is emitted (accumulated state view)
+    (let [{:keys [messages snapshot-history]} @state-snapshots
+          messages-with-snapshots
+          (vec (map-indexed
+                 (fn [msg-idx msg]
+                   (let [next-msg (get messages (inc msg-idx))
+                         snapshot-id
+                         (if next-msg
+                           ;; Use snapshot from just before the step that emits next message
+                           (let [next-step-idx (:step-index next-msg)]
+                             (if (pos? next-step-idx)
+                               (get snapshot-history (dec next-step-idx))
+                               ;; Next message emitted at step 0, use its snapshot
+                               (get snapshot-history 0)))
+                           ;; Last message: use the final snapshot
+                           (last snapshot-history))]
+                     (-> msg
+                         (assoc :snapshot-id snapshot-id)
+                         (dissoc :step-index))))
+                 messages))]
+      (swap! state-snapshots assoc :messages messages-with-snapshots))
+    ;; Remove temporary/internal data not needed by app
+    (swap! state-snapshots dissoc :latest :latest-snapshot-id :snapshot-history)
 
     ; TODO cljc hydration fn, shared with reagent app, invariant asserted in CI for all tests
     (comment (reduce edit/patch {} (:diffs @state-snapshots)))
