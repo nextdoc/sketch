@@ -270,7 +270,7 @@
                                        :model        model-parsed
                                        :step-actions step-actions ; Added step actions
                                        :dev?         dev?
-                                       :tag          "r0.1.31"}
+                                       :tag          "r0.1.32"}
                                       (sequence-diagram-page)
                                       (html)))
     (log/info success-string)))
