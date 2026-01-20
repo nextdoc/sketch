@@ -311,7 +311,7 @@
                                        :step-actions      step-actions
                                        :actor-state-usage (:actor-state-usage @system)
                                        :dev?              dev?
-                                       :tag               "r0.1.33"}
+                                       :tag               "r0.1.34"}
                                       (sequence-diagram-page)
                                       (html)))
     (log/info success-string)))
