@@ -4,6 +4,7 @@
 
 (def generated
   {:aws/lambda                         [:map]
+   :aws/sqs-worker                     [:map]
    :aws-ddb/city                       [:map]
    :aws-ddb/user                       [:map]
    :aws-env/env                        [:map]
@@ -23,6 +24,14 @@
                                         [:latitude :float]
                                         [:longitude :float]]
    :aws-lambda/weather-info-response   :weather/city
+   :aws-sqs-worker/ddb                 [:map
+                                        [:users [:set :weather/user]]
+                                        [:citys [:set :weather/city]]]
+   :aws-sqs-worker/env                 [:map-of :string :string]
+   :aws-sqs-worker/error               [:map]
+   :aws-sqs-worker/process-alert       [:map
+                                        [:city-name :string]
+                                        [:alert-count :int]]
    :iphone/weather-app                 [:map]
    :iphone-core-data/city              :weather/city
    :iphone-core-data/user              [:map]

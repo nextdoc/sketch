@@ -24,7 +24,11 @@
                                   :actors {:lambda {:id    :lambda
                                                     :name  "Lambda Rest APIs serving http requests/responses"
                                                     :ports {:handler {:id   :handler
-                                                                      :name "JVM handlers via API Gateway"}}}}}
+                                                                      :name "JVM handlers via API Gateway"}}}
+                                           :sqs-worker {:id    :sqs-worker
+                                                        :name  "SQS queue processor for async alerts"
+                                                        :ports {:queue {:id   :queue
+                                                                        :name "Weather alert queue"}}}}}
                    :open-weather {:id     :open-weather
                                   :name   "Open Weather Map"
                                   :state  {}
@@ -67,4 +71,8 @@
                    {:description "Server notifies app that weather in currently visible city changed"
                     :from        #ref [:locations :aws :actors :lambda :ports :handler]
                     :to          #ref [:locations :iphone :actors :weather-app :ports :http-client]
-                    :event       :weather-change}]}
+                    :event       :weather-change}
+                   {:description "Lambda queues alert for async processing"
+                    :from        #ref [:locations :aws :actors :lambda :ports :handler]
+                    :to          #ref [:locations :aws :actors :sqs-worker :ports :queue]
+                    :event       :process-alert}]}

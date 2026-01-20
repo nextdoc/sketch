@@ -155,7 +155,7 @@
 
 (defn lambda-push-weather-alert []
   {:actor   :aws/lambda
-   :action  "AWS Lambda pushes weather alert to mobile app"
+   :action  "AWS Lambda pushes weather alert to mobile app and queues for processing"
    :handler (fn [{:keys [state messages]}]
               (let [{:keys [timezone alerts]} (-> messages last :message :payload)
                     [city] (sketch-state/query (:ddb state) :citys (comp #{timezone} :name))
@@ -163,7 +163,21 @@
                 (sketch-state/put-record! (:ddb state) :citys with-alerts)
                 {:emit [{:to      :iphone/weather-app
                          :event   :weather-change
-                         :payload with-alerts}]}))})
+                         :payload with-alerts}
+                        {:to      :aws/sqs-worker
+                         :event   :process-alert
+                         :payload {:city-name timezone
+                                   :alert-count (count alerts)}}]}))})
+
+(defn sqs-process-alert []
+  {:actor   :aws/sqs-worker
+   :action  "SQS worker processes alert and updates user notification preferences"
+   :handler (fn [{:keys [state messages]}]
+              (let [{:keys [city-name]} (-> messages last :message :payload)
+                    users (sketch-state/query (:ddb state) :users (constantly true))]
+                ;; Read from :ddb to demonstrate second actor at same location accessing state.
+                ;; This reproduces https://github.com/nextdoc/sketch/issues/8
+                {:emit []}))})
 
 (defn app-weather-change []
   {:actor   :iphone/weather-app
@@ -234,6 +248,7 @@
                          lambda-poll-weather
                          api-weather-alert-response
                          lambda-push-weather-alert
+                         sqs-process-alert
                          app-weather-change])
 
 (defn with-indirection

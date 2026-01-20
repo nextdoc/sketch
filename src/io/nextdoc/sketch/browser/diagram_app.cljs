@@ -592,11 +592,15 @@
                                    (select [:locations MAP-VALS (collect-one :id)
                                             (collect [:actors MAP-KEYS])
                                             :state MAP-KEYS])
-                                   (reduce (fn [acc [location [actor] state]]
-                                             ; FIXME https://github.com/nextdoc/sketch/issues/8
-                                             (update-in acc
-                                                        [(keyword (str (name location) "-" (name actor))) :store]
-                                                        (fnil conj #{}) state))
+                                   (reduce (fn [acc [location actors state]]
+                                             ;; Associate state store with ALL actors at this location
+                                             ;; Fixed: https://github.com/nextdoc/sketch/issues/8
+                                             (reduce (fn [inner-acc actor]
+                                                       (update-in inner-acc
+                                                                  [(keyword (str (name location) "-" (name actor))) :store]
+                                                                  (fnil conj #{}) state))
+                                                     acc
+                                                     actors))
                                            {}))
                        store-types (->> model*
                                         (select [:locations MAP-VALS :state MAP-VALS])
