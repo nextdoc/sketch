@@ -42,7 +42,44 @@
     (as-map [_]
       (state/as-map impl))))
 
+(defn tracking-state-store
+  "Wraps a state store to track actor access. Actor-key is bound at creation time (functional).
+   Records usage in system atom under :actor-state-usage as {actor-key #{store-ids}}."
+  [impl store-id actor-key system]
+  (let [record-usage! #(swap! system update-in [:actor-state-usage actor-key] (fnil conj #{}) store-id)]
+    (reify
+      state/StateAssociative
+      (get-value [_ id]
+        (record-usage!)
+        (state/get-value impl id))
+      (put-value! [_ id value]
+        (record-usage!)
+        (state/put-value! impl id value))
+      (delete-value! [_ id]
+        (record-usage!)
+        (state/delete-value! impl id))
+      (as-lookup [_]
+        (state/as-lookup impl))
+      state/StateDatabase
+      (get-record [_ entity-type id]
+        (record-usage!)
+        (state/get-record impl entity-type id))
+      (query [_ entity-type predicate]
+        (record-usage!)
+        (state/query impl entity-type predicate))
+      (put-record! [_ entity-type record]
+        (record-usage!)
+        (state/put-record! impl entity-type record))
+      (delete-record! [_ entity-type id]
+        (record-usage!)
+        (state/delete-record! impl entity-type id))
+      (clear! [_]
+        (state/clear! impl))
+      (as-map [_]
+        (state/as-map impl)))))
+
 (def empty-system {:state-stores            {}
+                   :actor-state-usage       {}              ;; {actor-key #{store-ids...}} tracks which actors accessed which stores
                    :messages                {}
                    :entry-step              nil
                    :missing-message-schemas #{}
@@ -210,7 +247,7 @@
       (log/warn "  use nextdoc.fbp.stream3-sketch"))))
 
 (defn sequence-diagram-page
-  [{:keys [diagram title model states tag dev? step-actions]}]
+  [{:keys [diagram title model states tag dev? step-actions actor-state-usage]}]
   [:html {:lang "en"}
    [:head
     [:meta {:charset "UTF-8"}]
@@ -229,7 +266,7 @@
     [:div#app]
     [:script {:type "text/javascript"}
      (str/join "\n" ["const load = () => {"
-                     (format "io.nextdoc.sketch.browser.diagram_app.load('%s', %s, %s, %s, %s, %s);"
+                     (format "io.nextdoc.sketch.browser.diagram_app.load('%s', %s, %s, %s, %s, %s, %s);"
                              title
                              (json/write-str diagram)
                              (-> states
@@ -239,7 +276,10 @@
                                  (pr-str)
                                  (json/write-str))
                              (json/write-str tag)
-                             (json/write-str step-actions)) ; Added step actions
+                             (json/write-str step-actions)
+                             (-> actor-state-usage
+                                 (pr-str)
+                                 (json/write-str)))
                      "}"])]
     [:script {:type   "text/javascript"
               :src    (if dev? "http://localhost:8000/diagram-js/main.js"
@@ -264,13 +304,14 @@
     (log/info "updating diagram artifacts:" file-name)
     (io/make-parents (io/file file-name))
     (spit (str file-name ".mmd") diagram)
-    (spit (str file-name ".html") (-> {:diagram      diagram
-                                       :title        test-name
-                                       :states       states
-                                       :model        model-parsed
-                                       :step-actions step-actions ; Added step actions
-                                       :dev?         dev?
-                                       :tag          "r0.1.33"}
+    (spit (str file-name ".html") (-> {:diagram           diagram
+                                       :title             test-name
+                                       :states            states
+                                       :model             model-parsed
+                                       :step-actions      step-actions
+                                       :actor-state-usage (:actor-state-usage @system)
+                                       :dev?              dev?
+                                       :tag               "r0.1.33"}
                                       (sequence-diagram-page)
                                       (html)))
     (log/info success-string)))
@@ -362,24 +403,25 @@
                               actor-state-stores
                               (reduce
                                 (fn [acc state-meta]
-                                  (assoc acc (:id state-meta)
-                                             (or
-                                               ; already created/wrapped
-                                               (-> @system :state-stores (get (:id state-meta)))
-                                               ; lazy create/wrap
-                                               (let [new-store (cond
-                                                                 state-store (-> (:id state-meta)
-                                                                                 (state-store)
-                                                                                 (state-store-wrapped state-meta))
-                                                                 state-store-context (-> {:id           (:id state-meta)
-                                                                                          :model-parsed model-parsed}
-                                                                                         (state-store-context)
+                                  (let [store-id (:id state-meta)
+                                        ;; Get or create the shared underlying store
+                                        shared-store (or
+                                                       (-> @system :state-stores (get store-id))
+                                                       (let [new-store (cond
+                                                                         state-store (-> store-id
+                                                                                         (state-store)
                                                                                          (state-store-wrapped state-meta))
-                                                                 :else (throw (ex-info "missing state store factory fn in config" {})))]
-                                                 (when verbose?
-                                                   (println "Creating state store" (:id state-meta)))
-                                                 (swap! system assoc-in [:state-stores (:id state-meta)] new-store)
-                                                 new-store))))
+                                                                         state-store-context (-> {:id           store-id
+                                                                                                  :model-parsed model-parsed}
+                                                                                                 (state-store-context)
+                                                                                                 (state-store-wrapped state-meta))
+                                                                         :else (throw (ex-info "missing state store factory fn in config" {})))]
+                                                         (when verbose?
+                                                           (println "Creating state store" store-id))
+                                                         (swap! system assoc-in [:state-stores store-id] new-store)
+                                                         new-store))]
+                                    ;; Wrap with actor-specific tracking (actor bound at creation time)
+                                    (assoc acc store-id (tracking-state-store shared-store store-id from-keyword system))))
                                 {}
                                 ; location specific states
                                 (vals (:state from-location)))

@@ -582,26 +582,37 @@
      states - EDN string representing state transitions
      model - EDN string representing the model structure
      tag - Version tag string
-     step-actions - Array of step action strings"
-  [title mermaid-diagram states model tag step-actions]
+     step-actions - Array of step action strings
+     actor-state-usage - EDN string mapping actors to state stores they accessed"
+  [title mermaid-diagram states model tag step-actions actor-state-usage]
   (try
     (-> (js/mermaid.render "sequence" mermaid-diagram)
         (.then (fn [result]
                  (let [model* (reader/read-string model)
-                       actors (->> model*
-                                   (select [:locations MAP-VALS (collect-one :id)
-                                            (collect [:actors MAP-KEYS])
-                                            :state MAP-KEYS])
-                                   (reduce (fn [acc [location actors state]]
-                                             ;; Associate state store with ALL actors at this location
-                                             ;; Fixed: https://github.com/nextdoc/sketch/issues/8
-                                             (reduce (fn [inner-acc actor]
-                                                       (update-in inner-acc
-                                                                  [(keyword (str (name location) "-" (name actor))) :store]
-                                                                  (fnil conj #{}) state))
-                                                     acc
-                                                     actors))
-                                           {}))
+                       ;; Use server-provided actor-state-usage for accurate tracking
+                       ;; Format: {:aws/lambda #{:ddb :env}} -> {:aws-lambda {:store #{:ddb :env}}}
+                       usage-map (when actor-state-usage (reader/read-string actor-state-usage))
+                       actors (if usage-map
+                                ;; Transform server-provided usage to frontend format
+                                (reduce-kv (fn [acc actor-key store-ids]
+                                             (let [;; :aws/lambda -> :aws-lambda
+                                                   frontend-key (keyword (str (namespace actor-key) "-" (name actor-key)))]
+                                               (assoc acc frontend-key {:store store-ids})))
+                                           {}
+                                           usage-map)
+                                ;; Fallback: derive from model (for backwards compatibility)
+                                (->> model*
+                                     (select [:locations MAP-VALS (collect-one :id)
+                                              (collect [:actors MAP-KEYS])
+                                              :state MAP-KEYS])
+                                     (reduce (fn [acc [location actors state]]
+                                               (reduce (fn [inner-acc actor]
+                                                         (update-in inner-acc
+                                                                    [(keyword (str (name location) "-" (name actor))) :store]
+                                                                    (fnil conj #{}) state))
+                                                       acc
+                                                       actors))
+                                             {})))
                        store-types (->> model*
                                         (select [:locations MAP-VALS :state MAP-VALS])
                                         (map (juxt :id :type))
