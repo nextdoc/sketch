@@ -503,6 +503,11 @@
             message-count-before (count (all-messages))
             step-id (step-id-fn step)
             current-step-index (recorder/current-step-index snapshot-recorder)]
+        (when-not step-id
+          (throw (ex-info "Step missing metadata. Steps must be vars with :name metadata. Use (ns-resolve *ns* 'step-name) or #'step-name instead of bare symbols."
+                          {:step step
+                           :step-type (type step)
+                           :step-meta (meta step)})))
         (run-step! step)
         (let [state-after (state-edn)
               messages-after (all-messages)
