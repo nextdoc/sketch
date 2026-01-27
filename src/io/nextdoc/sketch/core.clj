@@ -291,6 +291,36 @@
                   schema-keys))]
     (first (map-descendant-keys (sorted-set) [schema-key]))))
 
+;; =============================================================================
+;; Step Indirection Utilities
+;; =============================================================================
+
+(defmacro chapter
+  "Resolves step symbols to vars with proper metadata for use in sketch tests.
+   Defines a composable unit of steps that can be concatenated with other chapters.
+   Must be used as a macro so *ns* is captured at compile time in the calling namespace.
+
+   Usage: (def my-chapter (chapter [step1 step2 step3]))
+   Returns: vector of vars with metadata intact"
+  [step-syms]
+  (when-not (vector? step-syms)
+    (throw (ex-info "chapter requires a vector literal of symbols"
+                    {:received step-syms
+                     :type     (type step-syms)})))
+  (doseq [sym step-syms]
+    (when-not (symbol? sym)
+      (throw (ex-info "chapter requires symbols, not vars or other forms"
+                      {:invalid-element sym
+                       :hint            (when (and (seq? sym) (= 'var (first sym)))
+                                          "Use symbol name directly, not #'var syntax")}))))
+  (doseq [sym step-syms]
+    (when-not (ns-resolve *ns* sym)
+      (throw (ex-info "Symbol does not resolve to a var"
+                      {:symbol    sym
+                       :namespace *ns*}))))
+  `(mapv (fn [sym#] (ns-resolve ~*ns* sym#)) '~step-syms))
+
+
 (defn map-multi-schemas
   "return a map of keyword -> keyword, containing all schemas that are part of a top level :multi schema"
   [registry]
