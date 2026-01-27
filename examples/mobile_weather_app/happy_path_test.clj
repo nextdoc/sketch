@@ -1,5 +1,6 @@
 (ns mobile-weather-app.happy-path-test
   (:require [clojure.test :refer :all]
+            [io.nextdoc.sketch.core :as sketch]
             [io.nextdoc.sketch.run :as sketch-run]
             [io.nextdoc.sketch.state :as sketch-state]
             [io.nextdoc.sketch.watcher :as sketch-watcher]
@@ -166,7 +167,7 @@
                          :payload with-alerts}
                         {:to      :aws/sqs-worker
                          :event   :process-alert
-                         :payload {:city-name timezone
+                         :payload {:city-name   timezone
                                    :alert-count (count alerts)}}]}))})
 
 (defn sqs-process-alert []
@@ -237,26 +238,21 @@
             :registry              (model/registry)
             :state-schemas-ignored #{}}))
 
-(def app-start-chapter '[app-user-info-request
-                         lambda-cold-start
-                         api-user-info-response
-                         app-handle-user-response
-                         lambda-weather-start
-                         api-weather-response
-                         lambda-weather-response
-                         app-weather-response
-                         lambda-poll-weather
-                         api-weather-alert-response
-                         lambda-push-weather-alert
-                         sqs-process-alert
-                         app-weather-change])
+(def app-start-chapter (sketch/chapter [app-user-info-request
+                                        lambda-cold-start
+                                        api-user-info-response
+                                        app-handle-user-response
+                                        lambda-weather-start
+                                        api-weather-response
+                                        lambda-weather-response
+                                        app-weather-response
+                                        lambda-poll-weather
+                                        api-weather-alert-response
+                                        lambda-push-weather-alert
+                                        sqs-process-alert
+                                        app-weather-change]))
 
-(defn with-indirection
-  "so exceptions can provide location"
-  [step-sym]
-  (ns-resolve *ns* step-sym))
-
-(def test-steps (mapv with-indirection (concat ['reset-system!] app-start-chapter)))
+(def test-steps (into (sketch/chapter [reset-system!]) app-start-chapter))
 
 (deftest happy-path
   (->> {:steps                     test-steps
