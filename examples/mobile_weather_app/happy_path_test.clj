@@ -30,7 +30,7 @@
               (let [new-user {:user-id   (random-uuid)      ; note: not using Sketch default :id keyword for primary key
                               :user-name (:user-name fixtures)}]
                 ; write to local storage
-                (sketch-state/put-record! (:core-data state) :users new-user)
+                (sketch-state/put-record! (:core-data state) :user-profiles new-user)
                 ; send request to api
                 {:emit [{:to      :aws/lambda
                          :request :user-info
@@ -49,11 +49,11 @@
    :action  "API upserts user and responds with status"
    :handler (fn [{:keys [state messages]}]
               (let [user-name (-> messages last :message :payload :user-name)
-                    matches (sketch-state/query (:ddb state) :user (comp #{user-name} :user-name))
+                    matches (sketch-state/query (:ddb state) :user-profiles (comp #{user-name} :user-name))
                     user (-> user-name
                              (domain/user-with-status matches)
                              (assoc :user-id (random-uuid)))]
-                (sketch-state/put-record! (:ddb state) :users user)
+                (sketch-state/put-record! (:ddb state) :user-profiles user)
                 {:emit [{:to        :iphone/weather-app
                          :request   :user-info
                          :direction :response
@@ -63,12 +63,12 @@
   {:actor   :iphone/weather-app
    :action  "app updates user, uses CLocationManager to get lat/long and requests weather"
    :handler (fn [{:keys [state fixtures messages]}]
-              (let [temp-user (first (sketch-state/query (:core-data state) :users (constantly true)))
+              (let [temp-user (first (sketch-state/query (:core-data state) :user-profiles (constantly true)))
                     api-user (-> messages last :message :payload)]
                 ; remove temp user
-                (sketch-state/delete-record! (:core-data state) :users (:id temp-user))
+                (sketch-state/delete-record! (:core-data state) :user-profiles (:id temp-user))
                 ; write server user with status to storage
-                (sketch-state/put-record! (:core-data state) :users api-user)
+                (sketch-state/put-record! (:core-data state) :user-profiles api-user)
                 ; request weather
                 {:emit [{:to      :aws/lambda
                          :request :weather-info
@@ -81,9 +81,9 @@
    :action  "AWS tracks (evil) user location and requests weather from provider"
    :handler (fn [{:keys [state messages]}]
               (let [{:keys [user-name latitude longitude]} (-> messages last :message :payload)
-                    users-found (sketch-state/query (:ddb state) :users (comp #{user-name} :user-name))]
+                    users-found (sketch-state/query (:ddb state) :user-profiles (comp #{user-name} :user-name))]
                 (is (= 1 (count users-found)))
-                (sketch-state/put-record! (:ddb state) :users
+                (sketch-state/put-record! (:ddb state) :user-profiles
                                           (merge (first users-found)
                                                  {:latitude  latitude
                                                   :longitude longitude}))
@@ -130,7 +130,7 @@
   {:actor   :aws/lambda
    :action  "AWS Lambda polls weather for tracked locations"
    :handler (fn [{:keys [state]}]
-              (let [users (sketch-state/query (:ddb state) :users (comp some? :latitude))]
+              (let [users (sketch-state/query (:ddb state) :user-profiles (comp some? :latitude))]
                 {:emit (for [user users]
                          {:to      :open-weather/api
                           :request :one-call
@@ -175,7 +175,7 @@
    :action  "SQS worker processes alert and updates user notification preferences"
    :handler (fn [{:keys [state messages]}]
               (let [{:keys [city-name]} (-> messages last :message :payload)
-                    users (sketch-state/query (:ddb state) :users (constantly true))]
+                    users (sketch-state/query (:ddb state) :user-profiles (constantly true))]
                 ;; Read from :ddb to demonstrate second actor at same location accessing state.
                 ;; This reproduces https://github.com/nextdoc/sketch/issues/8
                 {:emit []}))})

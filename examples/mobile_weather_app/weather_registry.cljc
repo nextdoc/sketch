@@ -3,51 +3,51 @@
             [malli.util :as mu]))
 
 (def generated
-  {:aws/lambda                         [:map]
-   :aws/sqs-worker                     [:map]
-   :aws-ddb/city                       [:map]
-   :aws-ddb/user                       [:map]
-   :aws-env/env                        [:map]
-   :aws-lambda/ddb                     [:map
-                                        [:users [:set :weather/user]]
+  {:aws/lambda  [:map]
+ :aws/sqs-worker  [:map]
+ :aws-ddb/city  [:map]
+ :aws-ddb/user-profile  [:map]
+ :aws-env/env  [:map]
+ :aws-lambda/ddb  [:map
+                                        [:user-profiles [:set :weather/user-profile]]
                                         [:citys [:set :weather/city]]]
-   :aws-lambda/env                     [:map-of :string :string]
-   :aws-lambda/error                   [:map]
-   :aws-lambda/user-info               [:map]
-   :aws-lambda/user-info-request       [:map
+ :aws-lambda/env  [:map-of :string :string]
+ :aws-lambda/error  [:map]
+ :aws-lambda/user-info  [:map]
+ :aws-lambda/user-info-request  [:map
                                         [:type [:= :user-info]]
                                         [:user-name :string]]
-   :aws-lambda/user-info-response      :weather/user
-   :aws-lambda/weather-info            [:map]
-   :aws-lambda/weather-info-request    [:map
+ :aws-lambda/user-info-response  :weather/user-profile
+ :aws-lambda/weather-info  [:map]
+ :aws-lambda/weather-info-request  [:map
                                         [:user-name :string]
                                         [:latitude :float]
                                         [:longitude :float]]
-   :aws-lambda/weather-info-response   :weather/city
-   :aws-sqs-worker/ddb                 [:map
-                                        [:users [:set :weather/user]]
+ :aws-lambda/weather-info-response  :weather/city
+ :aws-sqs-worker/ddb  [:map
+                                        [:user-profiles [:set :weather/user-profile]]
                                         [:citys [:set :weather/city]]]
-   :aws-sqs-worker/env                 [:map-of :string :string]
-   :aws-sqs-worker/error               [:map]
-   :aws-sqs-worker/process-alert       [:map
+ :aws-sqs-worker/env  [:map-of :string :string]
+ :aws-sqs-worker/error  [:map]
+ :aws-sqs-worker/process-alert  [:map
                                         [:city-name :string]
                                         [:alert-count :int]]
-   :iphone/weather-app                 [:map]
-   :iphone-core-data/city              :weather/city
-   :iphone-core-data/user              [:map]
-   :iphone-weather-app/core-data       [:map
-                                        [:users [:set :weather/user]]
+ :iphone/weather-app  [:map]
+ :iphone-core-data/city  :weather/city
+ :iphone-core-data/user-profile  [:map]
+ :iphone-weather-app/core-data  [:map
+                                        [:user-profiles [:set :weather/user-profile]]
                                         [:citys [:set :weather/city]]]
-   :iphone-weather-app/error           [:map]
-   :iphone-weather-app/weather-change  :weather/city
-   :open-weather/api                   [:map]
-   :open-weather-api/error             [:map]
-   :open-weather-api/one-call          [:map]
-   :open-weather-api/one-call-request  :open-weather/onecall-request
-   :open-weather-api/one-call-response :open-weather/onecall-response})
+ :iphone-weather-app/error  [:map]
+ :iphone-weather-app/weather-change  :weather/city
+ :open-weather/api  [:map]
+ :open-weather-api/error  [:map]
+ :open-weather-api/one-call  [:map]
+ :open-weather-api/one-call-request  :open-weather/onecall-request
+ :open-weather-api/one-call-response  :open-weather/onecall-response})
 
 (def domain-schema
-  {:weather/user [:map
+  {:weather/user-profile [:map
                   [:user-id {:description "Primary key used as the partition key in DynamoDB"}
                    ; This primary key demonstrates how alternative primary keys can be specified for state in the model
                    ; The happy path test uses the more sophisticated state store to support this

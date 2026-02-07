@@ -4,8 +4,8 @@
                                   :state  {:core-data {:id           :core-data
                                                        :type         :database
                                                        :name         "Core Data Services"
-                                                       :entities     #{:user :city}
-                                                       :primary-keys {:users :user-id}}}
+                                                       :entities     #{:user-profile :city}
+                                                       :primary-keys {:user-profiles :user-id}}}
                                   :actors {:weather-app {:id    :weather-app
                                                          :name  "weather app installed from App Store"
                                                          :ports {:http-client {:id   :http-client
@@ -19,8 +19,8 @@
                                            :ddb {:id           :ddb
                                                  :name         "Dynamodb"
                                                  :type         :database
-                                                 :entities     #{:city :user}
-                                                 :primary-keys {:users :user-id}}}
+                                                 :entities     #{:city :user-profile}
+                                                 :primary-keys {:user-profiles :user-id}}}
                                   :actors {:lambda {:id    :lambda
                                                     :name  "Lambda Rest APIs serving http requests/responses"
                                                     :ports {:handler {:id   :handler
@@ -40,8 +40,9 @@
  ; :domain-entities are all entities persisted in states somewhere in the network
  :domain-entities {:env  {:id   :env
                           :name "Environment variables"}
-                   :user {:id   :user
-                          :name "User of weather api"}
+                   ; hyphenated name to illustrate that diagrams can handle special characters for domain entities
+                   :user-profile {:id   :user-profile
+                                  :name "User of weather api"}
                    :city {:id   :city
                           :name "Description of city and location"}}
 

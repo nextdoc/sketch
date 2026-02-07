@@ -110,7 +110,7 @@
 
           (render-table [{:keys [name data changes]}]
             (when (seq data)
-              (gstring/format "  %s [label=<%s>];\n"
+              (gstring/format "  \"%s\" [label=<%s>];\n"
                               name
                               (make-html-table data name (or changes {})))))]
 
