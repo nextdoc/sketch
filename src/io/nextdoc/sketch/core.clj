@@ -106,7 +106,7 @@
                  [:map
                   [:type [:enum :associative :database]]
                   [:entities {:optional true} [:set :keyword]]
-                  [:primary-keys {:optional true} [:map-of :keyword :keyword]]]]
+                  [:primary-keys {:optional true} [:map-of :keyword [:or :keyword [:vector {:min 1} :keyword]]]]]]
      :actor     [:and {:description "A process running at a location that can handle and emit data"}
                  :named
                  [:map

@@ -8,13 +8,13 @@
   (create-table [this entity-type]
     "Creates a new table for the given entity type if it doesn't exist")
   (get-record [this entity-type id]
-    "Retrieves a record by its ID from the specified entity type table")
+    "Retrieves a record by its primary key value. For a composite primary key, id is a vector of values in key order.")
   (query [this entity-type predicate]
     "Returns all records from entity type table that match the predicate. Records returned include :id.")
   (put-record! [this entity-type value]
     "Stores a record in the entity type table")
   (delete-record! [this entity-type id]
-    "Removes the record with the given ID from the entity type table")
+    "Removes the record with the given primary key value. For a composite primary key, id is a vector of values in key order.")
   (clear! [this]
     "Removes all records from all tables")
   (as-map [this]
@@ -38,6 +38,9 @@
   ([{:keys [state-id primary-keys]}]
    (let [database (atom {})
          database-primary-keyword (fn [entity-type] (get-in primary-keys [state-id entity-type] :id))
+         record-key-fn (fn [entity-type]
+                         (let [pk (database-primary-keyword entity-type)]
+                           (if (vector? pk) (apply juxt pk) pk)))
          lookup (atom {})]
      (reify
        StateAssociative
@@ -54,8 +57,7 @@
          (when (nil? (get @database entity-type))
            (swap! database assoc entity-type #{})))
        (get-record [_ entity-type primary-key]
-         (let [primary-keyword (database-primary-keyword entity-type)]
-           (select-first [entity-type ALL (comp #{primary-key} primary-keyword)] @database)))
+         (select-first [entity-type ALL (comp #{primary-key} (record-key-fn entity-type))] @database))
        (query [_ entity-type predicate]
          (select [entity-type ALL predicate] @database))
        (put-record! [_ entity-type record]
@@ -63,21 +65,22 @@
          (when-not (contains? @database entity-type)
            (throw (ex-info "Table does not exist" {:entity-type entity-type})))
          ;; Check if record has primary key
-         (let [primary-keyword (database-primary-keyword entity-type)]
-           (when-not (contains? record primary-keyword)
+         (let [primary-keyword (database-primary-keyword entity-type)
+               key-fn (record-key-fn entity-type)]
+           (when-not (every? #(contains? record %) (if (vector? primary-keyword) primary-keyword [primary-keyword]))
              (throw (ex-info "Record must have a primary key" {:key    primary-keyword
                                                                :record record})))
            (swap! database update entity-type
                   (fn upsert-by-id [db]
                     (conj
                       (->> db
-                           (remove (comp #{(get record primary-keyword)} primary-keyword))
+                           (remove (comp #{(key-fn record)} key-fn))
                            (set))
                       record)))))
        (delete-record! [_ entity-type primary-key]
-         (let [primary-keyword (database-primary-keyword entity-type)]
+         (let [key-fn (record-key-fn entity-type)]
            (swap! database update entity-type (fn [db]
-                                                (->> db (remove (comp #{primary-key} primary-keyword)) set)))))
+                                                (->> db (remove (comp #{primary-key} key-fn)) set)))))
        (clear! [_] (reset! database {}))
        (as-map [_] @database)))))
 

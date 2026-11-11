@@ -2,9 +2,10 @@
   (:require [clojure.edn :as edn]
             [clojure.string :as str]
             [clojure.test :refer :all]
-            [io.nextdoc.sketch.core :refer [insert-sorted-map-entry map-multi-schemas map-schema-keys
+            [io.nextdoc.sketch.core :as core :refer [insert-sorted-map-entry map-multi-schemas map-schema-keys
                                             next-map-entry]]
             [io.nextdoc.sketch.sync :refer [insert-sorted-registry-schema sort-registry registry-form-loc]]
+            [malli.core :as m]
             [malli.registry :as mr]
             [rewrite-clj.zip :as z]))
 
@@ -279,3 +280,11 @@
   (is (= #{:deep-map :deeper-map :my-map :nested-map}
          (map-schema-keys map-registry-fixture :my-map))
       "entry and 3 descendant levels"))
+
+(deftest state-primary-keys-schema
+  (let [state-schema (m/schema :state {:registry core/model-registry})
+        state (fn [pks] {:id :ddb :name "ddb" :type :database :primary-keys pks})]
+    (is (m/validate state-schema (state {:subscriptions :topic-scope-id})))
+    (is (m/validate state-schema (state {:subscriptions [:connection-request-id :topic-scope-id]})))
+    (is (not (m/validate state-schema (state {:subscriptions []}))))
+    (is (not (m/validate state-schema (state {:subscriptions ["topic-scope-id"]}))))))

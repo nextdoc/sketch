@@ -75,3 +75,38 @@
                                         rendered))]
       (is (= "topic-scope-id" first-header)
           "primary key column must render first"))))
+
+(def composite-pk-primary-keys
+  {:ddb {:subscriptions [:connection-request-id :topic-scope-id]}})
+
+(def two-connections-same-topic
+  {:ddb {:subscriptions #{{:connection-request-id "conn-1" :topic-scope-id "topic-a" :status "pending"}
+                          {:connection-request-id "conn-2" :topic-scope-id "topic-a" :status "pending"}}}})
+
+(deftest composite-primary-key-rows-do-not-collapse-test
+  (let [processed (tables/process-store :ddb custom-pk-store-types composite-pk-primary-keys
+                                        two-connections-same-topic nil)]
+    (is (= #{["conn-1" "topic-a"] ["conn-2" "topic-a"]} (row-keys processed :subscriptions)))))
+
+(deftest composite-primary-key-change-detection-test
+  (let [curr {:ddb {:subscriptions #{{:connection-request-id "conn-1" :topic-scope-id "topic-a" :status "active"}}}}
+        processed (tables/process-store :ddb custom-pk-store-types composite-pk-primary-keys
+                                        curr two-connections-same-topic)
+        changes (:changes (entity-table processed :subscriptions))]
+    (is (= #{["conn-2" "topic-a"]} (:deleted changes)))
+    (is (empty? (:added changes)))
+    (is (= {["conn-1" "topic-a"] #{:status}} (:modified changes)))))
+
+(deftest composite-primary-key-columns-sort-first-in-key-order-test
+  (let [rendered (tables/create-tables-diagram
+                   [{:name        "subscriptions"
+                     :data        {["conn-1" "topic-a"] {:status                "pending"
+                                                         :topic-scope-id        "topic-a"
+                                                         :connection-request-id "conn-1"}}
+                     :primary-key [:topic-scope-id :connection-request-id]
+                     :changes     {}}]
+                   {:column-headers? true :max-columns 5})
+        headers (->> (re-seq #"<TD ALIGN='LEFT'><B>(.*?)</B></TD>" rendered)
+                     (map second)
+                     (remove #{"subscriptions"}))]
+    (is (= ["topic-scope-id" "connection-request-id" "status"] headers))))

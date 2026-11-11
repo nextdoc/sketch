@@ -3,6 +3,11 @@
    Kept host-neutral so it can be exercised from JVM tests."
   (:require [clojure.set :as set]))
 
+(defn record-key-fn
+  "Returns a fn of record to its identity. A vector primary key yields a tuple of its field values."
+  [primary-key]
+  (if (vector? primary-key) (apply juxt primary-key) primary-key))
+
 (defn detect-changes
   "Compare previous and current state to identify:
    - Added records (not present in previous state)
@@ -64,7 +69,8 @@
               (let [sorted-keys (->> (vals data)
                                      (first)
                                      (keys)
-                                     (sort-by #(if (= primary-key %) [0 ""] [1 %])))
+                                     (sort-by #(let [i (.indexOf (if (vector? primary-key) primary-key [primary-key]) %)]
+                                                 (if (neg? i) [1 %] [0 i]))))
                     headers (str "<TR>"
                                  (->> sorted-keys
                                       (take max-columns)
@@ -134,8 +140,9 @@
                  acc
                  (let [prev-records (get-in prev-store [entity-type])
                        primary-key (get store-primary-keys entity-type :id)
-                       record-map (reduce #(assoc %1 (primary-key %2) %2) {} records)
-                       prev-record-map (reduce #(assoc %1 (primary-key %2) %2) {} prev-records)
+                       key-fn (record-key-fn primary-key)
+                       record-map (reduce #(assoc %1 (key-fn %2) %2) {} records)
+                       prev-record-map (reduce #(assoc %1 (key-fn %2) %2) {} prev-records)
                        changes (detect-changes prev-record-map record-map)]
                    (assoc acc entity-type
                               {:records     records
@@ -154,10 +161,11 @@
   "Convert database data into format needed for table rendering"
   [data]
   (reduce-kv (fn [acc entity-type entity-data]
-               (let [primary-key (:primary-key entity-data :id)]
+               (let [primary-key (:primary-key entity-data :id)
+                     key-fn (record-key-fn primary-key)]
                  (conj acc {:name        (name entity-type)
                             :data        (reduce (fn [acc record]
-                                                   (assoc acc (primary-key record) record))
+                                                   (assoc acc (key-fn record) record))
                                                  {}
                                                  (:records entity-data))
                             :primary-key primary-key

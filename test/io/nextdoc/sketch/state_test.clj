@@ -160,3 +160,47 @@
       (testing "Records without :id field"
         (state/create-table store :users)
         (is (thrown? Exception (state/put-record! store :users {:name "No ID"})))))))
+
+(def subscription-store-config
+  {:state-id     :ddb
+   :primary-keys {:ddb {:subscriptions [:connection-request-id :topic-scope-id]
+                        :connections   :connection-request-id}}})
+
+(deftest composite-primary-key-test
+  (let [store (state/atom-state-store subscription-store-config)
+        sub-1-a {:connection-request-id "conn-1" :topic-scope-id "topic-a" :status "pending"}
+        sub-2-a {:connection-request-id "conn-2" :topic-scope-id "topic-a" :status "pending"}]
+    (state/create-table store :subscriptions)
+
+    (testing "records sharing one key field but not the other do not collide"
+      (state/put-record! store :subscriptions sub-1-a)
+      (state/put-record! store :subscriptions sub-2-a)
+      (is (= #{sub-1-a sub-2-a} (set (state/query store :subscriptions (constantly true))))))
+
+    (testing "get-record takes a vector of values in key order"
+      (is (= sub-1-a (state/get-record store :subscriptions ["conn-1" "topic-a"])))
+      (is (= sub-2-a (state/get-record store :subscriptions ["conn-2" "topic-a"])))
+      (is (nil? (state/get-record store :subscriptions ["topic-a" "conn-1"])))
+      (is (nil? (state/get-record store :subscriptions "conn-1"))))
+
+    (testing "put-record! replaces the record with the same composite key"
+      (state/put-record! store :subscriptions (assoc sub-1-a :status "active"))
+      (is (= 2 (count (state/query store :subscriptions (constantly true)))))
+      (is (= "active" (:status (state/get-record store :subscriptions ["conn-1" "topic-a"]))))
+      (is (= sub-2-a (state/get-record store :subscriptions ["conn-2" "topic-a"]))))
+
+    (testing "delete-record! removes only the matching composite key"
+      (state/delete-record! store :subscriptions ["conn-1" "topic-a"])
+      (is (nil? (state/get-record store :subscriptions ["conn-1" "topic-a"])))
+      (is (= [sub-2-a] (state/query store :subscriptions (constantly true)))))
+
+    (testing "put-record! requires every composite key field"
+      (is (thrown? Exception (state/put-record! store :subscriptions {:topic-scope-id "topic-b"}))))
+
+    (testing "keyword primary keys in the same store keep single-value semantics"
+      (state/create-table store :connections)
+      (state/put-record! store :connections {:connection-request-id "conn-1" :n 1})
+      (state/put-record! store :connections {:connection-request-id "conn-1" :n 2})
+      (is (= {:connection-request-id "conn-1" :n 2} (state/get-record store :connections "conn-1")))
+      (state/delete-record! store :connections "conn-1")
+      (is (empty? (state/query store :connections (constantly true)))))))
