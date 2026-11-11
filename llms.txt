@@ -152,6 +152,26 @@ The `io.nextdoc.sketch.state` namespace provides protocols for working with stat
 - `StateDatabase`: Operations for database-like stores
 - `StateAssociative`: Operations for associative data structures
 
+Database records are identified by `:id` unless the state declares `:primary-keys`, mapping entity type to either a
+keyword or a vector of keywords (composite key):
+
+```clojure
+:state {:ddb {:id           :ddb
+              :type         :database
+              :entities     #{:connections :subscriptions}
+              :primary-keys {:connections   :connection-request-id
+                             :subscriptions [:connection-request-id :topic-scope-id]}}}
+```
+
+`put-record!` upserts by the record's key and throws if any key field is missing. `get-record` and `delete-record!` take
+the key value, or for a composite key a vector of values in key order:
+
+```clojure
+(sketch-state/get-record store :connections "conn-1")
+(sketch-state/get-record store :subscriptions ["conn-1" "topic-a"])
+(sketch-state/delete-record! store :subscriptions ["conn-1" "topic-a"])
+```
+
 ### Test Step Structure
 
 Each test step should be a function that returns a map with:

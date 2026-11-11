@@ -66,7 +66,7 @@
               (let [temp-user (first (sketch-state/query (:core-data state) :user-profiles (constantly true)))
                     api-user (-> messages last :message :payload)]
                 ; remove temp user
-                (sketch-state/delete-record! (:core-data state) :user-profiles (:id temp-user))
+                (sketch-state/delete-record! (:core-data state) :user-profiles (:user-id temp-user))
                 ; write server user with status to storage
                 (sketch-state/put-record! (:core-data state) :user-profiles api-user)
                 ; request weather
